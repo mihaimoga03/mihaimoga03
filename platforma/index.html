@@ -1,0 +1,1121 @@
+<title>Gestio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600&display=swap">
+<style>
+:root{
+  --ground:#EEF1F5; --surface:#FFFFFF; --surface-2:#F6F8FA; --surface-3:#E9EEF4;
+  --ink:#131A22; --ink-2:#4A5765; --ink-3:#77838F; --rule:#D9DFE7;
+  --accent:#1F3A5F; --accent-ink:#FFFFFF; --accent-soft:#E3E9F2;
+  --good:#1B6F4A; --warn:#8F5A12; --bad:#9C2A26;
+  --seq-1:#B8C7DC; --seq-2:#8FA6C6; --seq-3:#6685AF; --seq-4:#3F6396; --seq-5:#1F3A5F;
+  --shadow:0 1px 2px rgba(19,26,34,.06), 0 8px 24px -18px rgba(19,26,34,.5);
+  --sheet:rgba(19,26,34,.42);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1319; --surface:#161D25; --surface-2:#1C242D; --surface-3:#232C36;
+    --ink:#E6ECF3; --ink-2:#A6B2BF; --ink-3:#7C8894; --rule:#28323C;
+    --accent:#8FB2E0; --accent-ink:#0E1319; --accent-soft:#22303F;
+    --good:#59BE8E; --warn:#D9A24A; --bad:#E58179;
+    --seq-1:#2E3F53; --seq-2:#3F5878; --seq-3:#54749B; --seq-4:#6E93BE; --seq-5:#8FB2E0;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -20px rgba(0,0,0,.9);
+    --sheet:rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1319; --surface:#161D25; --surface-2:#1C242D; --surface-3:#232C36;
+  --ink:#E6ECF3; --ink-2:#A6B2BF; --ink-3:#7C8894; --rule:#28323C;
+  --accent:#8FB2E0; --accent-ink:#0E1319; --accent-soft:#22303F;
+  --good:#59BE8E; --warn:#D9A24A; --bad:#E58179;
+  --seq-1:#2E3F53; --seq-2:#3F5878; --seq-3:#54749B; --seq-4:#6E93BE; --seq-5:#8FB2E0;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -20px rgba(0,0,0,.9);
+  --sheet:rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:15px;line-height:1.5;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:1040px;margin:0 auto;padding:0 14px 96px}
+
+/* antet */
+.top{position:sticky;top:0;z-index:20;background:var(--ground);padding:14px 0 0;
+  border-bottom:1px solid var(--rule)}
+.top-row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.brand{font-family:"IBM Plex Serif",Georgia,serif;font-size:20px;font-weight:600;margin:0}
+.brand small{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:400;
+  color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase;margin-left:8px}
+.top-row .grow{flex:1 1 auto}
+nav{display:flex;gap:2px;overflow-x:auto;margin-top:12px;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav button{appearance:none;border:none;background:none;color:var(--ink-2);cursor:pointer;
+  font:inherit;font-size:13.5px;font-weight:500;padding:9px 12px;border-radius:8px 8px 0 0;
+  border-bottom:2px solid transparent;white-space:nowrap}
+nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+nav button:focus-visible,.btn:focus-visible,input:focus-visible,select:focus-visible{
+  outline:2px solid var(--accent);outline-offset:2px}
+
+/* butoane */
+.btn{appearance:none;font:inherit;font-size:14px;font-weight:600;cursor:pointer;
+  border-radius:9px;padding:9px 15px;border:1px solid var(--rule);background:var(--surface);
+  color:var(--ink)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn-ghost{background:none;border-color:transparent;color:var(--ink-2);padding:6px 9px;font-size:13px}
+.btn-danger{color:var(--bad);border-color:var(--bad);background:none}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 4px}
+
+/* structura */
+section[hidden]{display:none}
+.view{padding-top:20px}
+h2{font-family:"IBM Plex Serif",Georgia,serif;font-size:19px;font-weight:600;margin:0 0 12px;
+  text-wrap:balance}
+h3{font-size:12px;font-weight:600;color:var(--ink-3);letter-spacing:.1em;text-transform:uppercase;
+  margin:26px 0 9px}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:11px;
+  box-shadow:var(--shadow);padding:15px}
+.panel+.panel{margin-top:12px}
+.note{color:var(--ink-2);font-size:13px;margin:10px 0 0}
+.empty{color:var(--ink-3);font-size:13.5px;font-style:italic;margin:8px 0;text-align:center;padding:14px 0}
+
+/* cifre-cheie */
+.tiles{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.tile{background:var(--surface);border:1px solid var(--rule);border-radius:11px;padding:13px 14px;
+  box-shadow:var(--shadow)}
+.tile-label{margin:0;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:600}
+.tile-value{margin:5px 0 1px;font-family:"IBM Plex Mono",monospace;font-weight:600;
+  font-size:clamp(19px,4.2vw,25px);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.tile-sub{margin:0;font-size:12px;color:var(--ink-2)}
+.tile-good .tile-value{color:var(--good)} .tile-bad .tile-value{color:var(--bad)}
+.tile-warn .tile-value{color:var(--warn)}
+
+/* tabele */
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{padding:8px 9px;border-bottom:1px solid var(--rule);text-align:left;vertical-align:baseline}
+th{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);
+  font-weight:600;white-space:nowrap}
+td.num,th.num{text-align:right;font-family:"IBM Plex Mono",monospace;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+tbody tr.clickable{cursor:pointer}
+tbody tr.clickable:hover{background:var(--surface-2)}
+
+/* pastile de stare */
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:10.5px;font-weight:600;
+  border:1px solid currentColor;white-space:nowrap}
+.pill-good{color:var(--good)} .pill-warn{color:var(--warn)} .pill-bad{color:var(--bad)}
+.pill-mut{color:var(--ink-3)}
+.nw{white-space:nowrap}
+
+/* grafice */
+svg.chart{width:100%;height:auto;display:block}
+.grid{stroke:var(--rule);stroke-width:1}
+.bar{fill:var(--seq-4)} .bar-peak{fill:var(--accent)}
+.seq-1{fill:var(--seq-1)}.seq-2{fill:var(--seq-2)}.seq-3{fill:var(--seq-3)}
+.seq-4{fill:var(--seq-4)}.seq-5{fill:var(--seq-5)}
+svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
+.axis{fill:var(--ink-3);font-size:12px}
+.mark-label,.row-value{fill:var(--ink);font-size:12.5px;font-weight:600;
+  font-family:"IBM Plex Mono",monospace}
+.row-label{fill:var(--ink-2);font-size:13px}
+
+/* formulare in foaie */
+.sheet{position:fixed;inset:0;z-index:40;background:var(--sheet);display:flex;
+  align-items:flex-end;justify-content:center}
+.sheet[hidden]{display:none}
+.sheet-card{background:var(--surface);width:100%;max-width:620px;max-height:92vh;overflow-y:auto;
+  border-radius:16px 16px 0 0;padding:18px 16px 24px;border:1px solid var(--rule)}
+@media (min-width:640px){.sheet{align-items:center}.sheet-card{border-radius:14px}}
+.sheet-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.sheet-head h3{margin:0;font-size:16px;font-family:"IBM Plex Serif",Georgia,serif;
+  letter-spacing:0;text-transform:none;color:var(--ink)}
+.sheet-head .grow{flex:1 1 auto}
+.field{display:block;margin-bottom:11px}
+.field span{display:block;font-size:11.5px;font-weight:600;color:var(--ink-2);margin-bottom:4px;
+  letter-spacing:.03em}
+.field input,.field select{width:100%;font:inherit;font-size:16px;padding:9px 10px;
+  border:1px solid var(--rule);border-radius:8px;background:var(--surface-2);color:var(--ink)}
+.field input[type="number"]{font-family:"IBM Plex Mono",monospace}
+.grid2{display:grid;gap:0 10px;grid-template-columns:1fr 1fr}
+.lines{border:1px solid var(--rule);border-radius:9px;padding:10px;margin:6px 0 12px;
+  background:var(--surface-2)}
+.line-row{display:flex;gap:8px;align-items:baseline;font-size:13.5px;padding:5px 0;
+  border-bottom:1px solid var(--rule)}
+.line-row:last-child{border-bottom:none}
+.line-row .grow{flex:1 1 auto}
+.line-row .num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.total-row{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;
+  font-size:14px;padding:3px 0}
+.total-row.big{font-weight:600;font-size:16px;border-top:2px solid var(--ink);margin-top:6px;
+  padding-top:8px}
+.msg{font-size:13px;padding:9px 11px;border-radius:8px;margin-bottom:12px;border:1px solid currentColor}
+.msg-bad{color:var(--bad)} .msg-good{color:var(--good)} .msg-warn{color:var(--warn)}
+.banner{margin:14px 0 0;padding:10px 12px;border-radius:9px;font-size:12.5px;font-weight:600;
+  color:var(--warn);background:var(--surface);border:1px solid currentColor;
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.banner .btn{margin-left:auto}
+.offline{color:var(--bad)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div class="top-row">
+      <p class="brand">Gestio<small id="firma">firma mea</small></p>
+      <span class="grow"></span>
+      <span id="stare" class="pill pill-mut">se incarca</span>
+    </div>
+    <nav role="tablist" aria-label="Sectiuni">
+      <button role="tab" data-view="acasa" aria-selected="true">Acasa</button>
+      <button role="tab" data-view="vanzari" aria-selected="false">Vanzari</button>
+      <button role="tab" data-view="achizitii" aria-selected="false">Achizitii</button>
+      <button role="tab" data-view="stoc" aria-selected="false">Stoc</button>
+      <button role="tab" data-view="clienti" aria-selected="false">Clienti</button>
+    </nav>
+  </div>
+
+  <section class="view" id="view-acasa">
+    <div id="demo-banner" hidden class="banner"></div>
+    <h2>Cum sta firma</h2>
+    <div class="tiles" id="tiles"></div>
+
+    <h3>Incasari pe luni</h3>
+    <div class="panel"><div id="chart-vanzari"></div>
+      <p class="note" id="nota-vanzari"></p></div>
+
+    <h3>De incasat, pe intarziere</h3>
+    <div class="panel"><div id="chart-scadente"></div></div>
+
+    <h3>Ultimele documente</h3>
+    <div class="panel"><div class="scroll"><table id="tab-recente"></table></div></div>
+  </section>
+
+  <section class="view" id="view-vanzari" hidden>
+    <h2>Vanzari</h2>
+    <div class="actions">
+      <button class="btn btn-primary" data-open="factura-out">Factura emisa</button>
+      <button class="btn" data-open="raport-z">Raport Z</button>
+    </div>
+    <h3>Facturi emise</h3>
+    <div class="panel"><div class="scroll"><table id="tab-facturi-out"></table></div></div>
+    <h3>Rapoarte Z</h3>
+    <div class="panel"><div class="scroll"><table id="tab-z"></table></div></div>
+  </section>
+
+  <section class="view" id="view-achizitii" hidden>
+    <h2>Achizitii</h2>
+    <div class="actions">
+      <button class="btn btn-primary" data-open="factura-in">Factura primita</button>
+    </div>
+    <p class="note">O factura primita cu articole de stoc face si receptia: creste stocul si
+      recalculeaza costul mediu.</p>
+    <h3>Facturi primite</h3>
+    <div class="panel"><div class="scroll"><table id="tab-facturi-in"></table></div></div>
+  </section>
+
+  <section class="view" id="view-stoc" hidden>
+    <h2>Stoc</h2>
+    <div class="actions">
+      <button class="btn btn-primary" data-open="produs">Articol nou</button>
+      <button class="btn" data-open="bon">Bon de consum</button>
+    </div>
+    <div class="tiles" id="tiles-stoc"></div>
+    <h3>Articole</h3>
+    <div class="panel"><div class="scroll"><table id="tab-stoc"></table></div></div>
+    <h3>Consumuri pe centru de cost</h3>
+    <div class="panel"><div id="chart-consum"></div>
+      <div class="scroll"><table id="tab-consum"></table></div></div>
+  </section>
+
+  <section class="view" id="view-clienti" hidden>
+    <h2>Clienti</h2>
+    <div class="actions">
+      <button class="btn btn-primary" data-open="client">Client nou</button>
+    </div>
+    <div class="panel"><div class="scroll"><table id="tab-clienti"></table></div></div>
+  </section>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="sheet-head">
+      <h3 id="sheet-title">Formular</h3>
+      <span class="grow"></span>
+      <button class="btn btn-ghost" id="sheet-close" aria-label="Inchide">Inchide</button>
+    </div>
+    <div id="sheet-body"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------------------------------------------------------------- constante
+  var TVA = 21;                       // cota standard, RO din august 2025
+  var MONEDA = "RON";
+  var LUNI = ["ian","feb","mar","apr","mai","iun","iul","aug","sep","oct","noi","dec"];
+  var COLECTII = ["products", "clients", "invoices", "zreports", "consumptions", "meta"];
+
+  var db = null;
+  var S = { products: [], clients: [], invoices: [], zreports: [], consumptions: [], meta: [] };
+  var vizibil = "acasa";
+
+  // ------------------------------------------------------------------- bani
+  // Tot ce e suma se tine in bani intregi. Impartirea la 100 se face doar la afisare.
+  function bani(ron) {
+    var n = Number(String(ron).replace(",", "."));
+    return isFinite(n) ? Math.round(n * 100) : 0;
+  }
+  function lei(b, zecimale) {
+    var z = zecimale === undefined ? 2 : zecimale;
+    var v = (b || 0) / 100;
+    var s = v.toLocaleString("ro-RO", { minimumFractionDigits: z, maximumFractionDigits: z });
+    return s;
+  }
+  function scurt(b) {
+    var v = Math.abs(b || 0) / 100;
+    if (v >= 1000000) return lei(b / 1000000, 1) + " mil.";
+    if (v >= 1000) return lei(b / 1000, 1) + " mii";
+    return lei(b, 0);
+  }
+  function tvaDin(net, cota) { return Math.round(net * (cota || 0) / 100); }
+  function esc(t) {
+    return String(t === null || t === undefined ? "" : t)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+  function azi() { return new Date().toISOString().slice(0, 10); }
+  function plusZile(iso, zile) {
+    var d = new Date(iso + "T00:00:00");
+    d.setDate(d.getDate() + (zile || 0));
+    return d.toISOString().slice(0, 10);
+  }
+  function zileIntre(a, b) {
+    return Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000);
+  }
+  function id(prefix) {
+    return prefix + "-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+  function anCurent() { return new Date().getFullYear(); }
+
+  // ------------------------------------------------------------ acces la date
+  function get(colectie, docId) {
+    var lista = S[colectie] || [];
+    for (var i = 0; i < lista.length; i++) if (lista[i].id === docId) return lista[i];
+    return null;
+  }
+  function produsDupaSku(sku) {
+    for (var i = 0; i < S.products.length; i++) if (S.products[i].sku === sku) return S.products[i];
+    return null;
+  }
+  function facturi(tip) {
+    return S.invoices.filter(function (f) { return f.tip === tip && f.status !== "anulata"; })
+      .sort(function (a, b) { return (b.data || "").localeCompare(a.data || ""); });
+  }
+  function esteDemo() {
+    var m = get("meta", "state");
+    return !!(m && m.demo);
+  }
+
+  async function scrie(colectie, docId, date) {
+    if (!db) throw new Error("Nu am legatura cu baza de date.");
+    await db.doc(colectie + "/" + docId).set(date);
+  }
+  async function sterge(colectie, docId) {
+    if (db) await db.doc(colectie + "/" + docId).delete();
+  }
+
+  // --------------------------------------------------------------- grafice
+  // O singura serie peste tot, deci nu e nevoie de legenda: titlul sectiunii o numeste.
+  function bareVerticale(serie, eticheta) {
+    var valori = serie.map(function (x) { return x.valoare; });
+    var maxim = Math.max.apply(null, valori.concat([1]));
+    var W = 720, H = 230, st = 58, jos = 32, dr = 8, sus = 24;
+    var pw = W - st - dr, ph = H - jos - sus, slot = pw / serie.length;
+    var lat = Math.min(38, slot - 9);
+    var varf = valori.indexOf(maxim);
+    var p = [];
+    for (var i = 0; i < 5; i++) {
+      var y = sus + ph - ph * i / 4;
+      p.push('<line class="grid" x1="' + st + '" y1="' + y.toFixed(1) + '" x2="' + (st + pw) +
+             '" y2="' + y.toFixed(1) + '"/>');
+    }
+    [0, 0.5, 1].forEach(function (f) {
+      var y = sus + ph - ph * f;
+      p.push('<text class="axis" x="' + (st - 10) + '" y="' + (y + 4).toFixed(1) +
+             '" text-anchor="end">' + scurt(maxim * f) + "</text>");
+    });
+    serie.forEach(function (item, i) {
+      var x = st + slot * i + (slot - lat) / 2;
+      var h = item.valoare ? ph * item.valoare / maxim : 0;
+      var y = sus + ph - h;
+      var r = Math.min(4, h);
+      if (h > 0) {
+        var d = "M" + x.toFixed(1) + "," + (sus + ph).toFixed(1) + " V" + (y + r).toFixed(1) +
+                " a" + r + "," + r + " 0 0 1 " + r + ",-" + r +
+                " h" + (lat - 2 * r).toFixed(1) +
+                " a" + r + "," + r + " 0 0 1 " + r + "," + r +
+                " V" + (sus + ph).toFixed(1) + " Z";
+        p.push('<path class="bar' + (i === varf ? " bar-peak" : "") + '" d="' + d + '"><title>' +
+               esc(item.eticheta) + ": " + lei(item.valoare) + " " + MONEDA + "</title></path>");
+      }
+      if (i === varf && item.valoare) {
+        p.push('<text class="mark-label" x="' + (x + lat / 2).toFixed(1) + '" y="' +
+               (y - 7).toFixed(1) + '" text-anchor="middle">' + scurt(item.valoare) + "</text>");
+      }
+      p.push('<text class="axis" x="' + (x + lat / 2).toFixed(1) + '" y="' + (H - 11) +
+             '" text-anchor="middle">' + esc(item.eticheta) + "</text>");
+    });
+    return '<svg class="chart" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' +
+           esc(eticheta) + '">' + p.join("") + "</svg>";
+  }
+
+  function bareOrizontale(items, ramp) {
+    if (!items.length) return '<p class="empty">Nimic de aratat inca.</p>';
+    var maxim = Math.max.apply(null, items.map(function (x) { return x.valoare; }).concat([1]));
+    var W = 720, rh = 32, gap = 8, etW = 200, valW = 110;
+    var pista = W - etW - valW, H = items.length * (rh + gap);
+    var p = [];
+    items.forEach(function (item, i) {
+      var y = i * (rh + gap);
+      var w = item.valoare ? Math.max(3, pista * item.valoare / maxim) : 0;
+      var cls = ramp ? "bar seq-" + Math.min(i + 1, 5) : "bar";
+      p.push('<text class="row-label" x="0" y="' + (y + rh / 2 + 5) + '">' +
+             esc(item.eticheta) + "</text>");
+      p.push('<rect class="' + cls + '" x="' + etW + '" y="' + (y + 5) + '" width="' + w.toFixed(1) +
+             '" height="' + (rh - 10) + '" rx="4"><title>' + esc(item.eticheta) + ": " +
+             lei(item.valoare) + " " + MONEDA + "</title></rect>");
+      p.push('<text class="row-value" x="' + W + '" y="' + (y + rh / 2 + 5) +
+             '" text-anchor="end">' + lei(item.valoare) + "</text>");
+    });
+    return '<svg class="chart" viewBox="0 0 ' + W + " " + H +
+           '" role="img" aria-label="Valori pe categorii">' + p.join("") + "</svg>";
+  }
+
+  // --------------------------------------------------------------- tabele
+  function tabel(capuri, randuri, numericDe) {
+    if (!randuri.length) return '<p class="empty">Nimic aici inca.</p>';
+    var nd = numericDe === undefined ? 1 : numericDe;
+    var thead = capuri.map(function (c, i) {
+      return '<th class="' + (i >= nd ? "num" : "") + '">' + esc(c) + "</th>";
+    }).join("");
+    var tbody = randuri.map(function (r) {
+      var celule = r.celule.map(function (c, i) {
+        return '<td class="' + (i >= nd ? "num" : "") + '">' + c + "</td>";
+      }).join("");
+      var attr = r.click ? ' class="clickable" data-click="' + esc(r.click) + '"' : "";
+      return "<tr" + attr + ">" + celule + "</tr>";
+    }).join("");
+    return "<thead><tr>" + thead + "</tr></thead><tbody>" + tbody + "</tbody>";
+  }
+
+  // ------------------------------------------------------------- randare
+  function tile(eticheta, valoare, sub, ton) {
+    return '<div class="tile' + (ton ? " tile-" + ton : "") + '"><p class="tile-label">' +
+      esc(eticheta) + '</p><p class="tile-value">' + valoare + '</p><p class="tile-sub">' +
+      esc(sub) + "</p></div>";
+  }
+
+  function incasariLunare(an) {
+    var serie = LUNI.map(function (l) { return { eticheta: l, valoare: 0 }; });
+    facturi("out").forEach(function (f) {
+      if ((f.data || "").slice(0, 4) === String(an)) serie[+f.data.slice(5, 7) - 1].valoare += f.net || 0;
+    });
+    S.zreports.forEach(function (z) {
+      if ((z.data || "").slice(0, 4) === String(an)) serie[+z.data.slice(5, 7) - 1].valoare += z.net || 0;
+    });
+    return serie;
+  }
+
+  function scadente() {
+    var praguri = [
+      { eticheta: "Nescadente", max: 0 }, { eticheta: "1-30 zile", max: 30 },
+      { eticheta: "31-60 zile", max: 60 }, { eticheta: "61-90 zile", max: 90 },
+      { eticheta: "Peste 90 de zile", max: 1e9 }
+    ];
+    var galeti = praguri.map(function (p) { return { eticheta: p.eticheta, valoare: 0, facturi: [] }; });
+    facturi("out").forEach(function (f) {
+      var restant = (f.total || 0) - (f.incasat || 0);
+      if (restant <= 0) return;
+      var intarziere = zileIntre(f.scadenta || f.data, azi());
+      var idx = intarziere <= 0 ? 0 : intarziere <= 30 ? 1 : intarziere <= 60 ? 2 : intarziere <= 90 ? 3 : 4;
+      galeti[idx].valoare += restant;
+      galeti[idx].facturi.push({ f: f, intarziere: Math.max(0, intarziere), restant: restant });
+    });
+    return galeti;
+  }
+
+  function valoareStoc() {
+    return S.products.reduce(function (t, p) {
+      return p.tip === "serviciu" ? t : t + Math.round((p.stoc || 0) * (p.cost || 0));
+    }, 0);
+  }
+
+  function randeazaAcasa() {
+    var an = anCurent();
+    var out = facturi("out").filter(function (f) { return (f.data || "").slice(0, 4) === String(an); });
+    var zz = S.zreports.filter(function (z) { return (z.data || "").slice(0, 4) === String(an); });
+    var cifra = out.reduce(function (t, f) { return t + (f.net || 0); }, 0) +
+                zz.reduce(function (t, z) { return t + (z.net || 0); }, 0);
+    var cost = out.reduce(function (t, f) { return t + (f.cost || 0); }, 0);
+    var tvaColectata = out.reduce(function (t, f) { return t + (f.tva || 0); }, 0) +
+                       zz.reduce(function (t, z) { return t + (z.tva || 0); }, 0);
+    var tvaDeductibila = facturi("in").filter(function (f) {
+      return (f.data || "").slice(0, 4) === String(an);
+    }).reduce(function (t, f) { return t + (f.tva || 0); }, 0);
+    var deIncasat = facturi("out").reduce(function (t, f) {
+      return t + Math.max(0, (f.total || 0) - (f.incasat || 0));
+    }, 0);
+    var dePlatit = facturi("in").reduce(function (t, f) {
+      return t + Math.max(0, (f.total || 0) - (f.platit || 0));
+    }, 0);
+    var consum = S.consumptions.reduce(function (t, b) { return t + (b.valoare || 0); }, 0);
+    var soldTva = tvaColectata - tvaDeductibila;
+
+    document.getElementById("tiles").innerHTML = [
+      tile("Cifra de afaceri", lei(cifra), out.length + " facturi si " + zz.length + " rapoarte Z"),
+      tile("Marja bruta", lei(cifra - cost),
+           !cifra ? "fara vanzari"
+             : zz.length ? "cost stiut doar de pe facturi"
+             : Math.round(1000 * (cifra - cost) / cifra) / 10 + "% din vanzari",
+           cifra - cost >= 0 ? "good" : "bad"),
+      tile("De incasat", lei(deIncasat), "de la clienti", deIncasat ? "warn" : ""),
+      tile("De platit", lei(dePlatit), "catre furnizori", dePlatit ? "warn" : ""),
+      tile("Valoare stoc", lei(valoareStoc()), S.products.length + " articole"),
+      tile("Consumuri", lei(consum), S.consumptions.length + " bonuri"),
+      tile("TVA", lei(Math.abs(soldTva)), soldTva >= 0 ? "de plata" : "de recuperat",
+           soldTva >= 0 ? "bad" : "good")
+    ].join("");
+
+    var serie = incasariLunare(an);
+    document.getElementById("chart-vanzari").innerHTML =
+      bareVerticale(serie, "Vanzari nete pe luni in " + an);
+    var luni = serie.filter(function (x) { return x.valoare; }).length;
+    document.getElementById("nota-vanzari").textContent =
+      luni + (luni === 1 ? " luna" : " luni") + " cu activitate in " + an +
+      ". Cost marfa vanduta: " + lei(cost) + " " + MONEDA + ".";
+
+    document.getElementById("chart-scadente").innerHTML =
+      bareOrizontale(scadente().filter(function (g) { return g.valoare; }), true);
+
+    var recente = S.invoices.concat(S.zreports.map(function (z) {
+      return { id: z.id, tip: "z", data: z.data, partener: "Raport Z " + (z.numar || ""), total: z.total };
+    })).sort(function (a, b) { return (b.data || "").localeCompare(a.data || ""); }).slice(0, 8);
+    document.getElementById("tab-recente").innerHTML = tabel(
+      ["Data", "Document", "Total (" + MONEDA + ")"],
+      recente.map(function (d) {
+        var nume = d.tip === "z" ? d.partener : (d.tip === "out" ? "Emisa " : "Primita ") +
+          (d.numar || "") + " - " + (d.partener || "");
+        return { celule: ['<span class="nw">' + esc(d.data) + "</span>", esc(nume),
+                          lei(d.total)] };
+      }), 2);
+
+    var banner = document.getElementById("demo-banner");
+    if (esteDemo()) {
+      banner.hidden = false;
+      banner.innerHTML = "<span>Datele de aici sunt demonstrative, nu ale firmei tale.</span>" +
+        '<button class="btn btn-ghost btn-danger" id="sterge-demo">Sterge-le</button>';
+    } else {
+      banner.hidden = true;
+    }
+  }
+
+  function randeazaVanzari() {
+    document.getElementById("tab-facturi-out").innerHTML = tabel(
+      ["Numar", "Client", "Scadenta", "Stare", "Total (" + MONEDA + ")"],
+      facturi("out").map(function (f) {
+        var restant = (f.total || 0) - (f.incasat || 0);
+        var intarziere = zileIntre(f.scadenta || f.data, azi());
+        var stare = restant <= 0
+          ? '<span class="pill pill-good">achitata</span>'
+          : intarziere > 0
+            ? '<span class="pill pill-bad">' + intarziere + " zile</span>"
+            : '<span class="pill pill-warn">de incasat</span>';
+        return { click: "incaseaza:" + f.id,
+                 celule: [esc(f.numar), esc(f.partener),
+                          '<span class="nw">' + esc(f.scadenta || "") + "</span>",
+                          stare, lei(f.total)] };
+      }), 3);
+
+    document.getElementById("tab-z").innerHTML = tabel(
+      ["Data", "Nr. Z", "Numerar", "Card", "Total (" + MONEDA + ")"],
+      S.zreports.slice().sort(function (a, b) { return (b.data || "").localeCompare(a.data || ""); })
+        .map(function (z) {
+          return { celule: ['<span class="nw">' + esc(z.data) + "</span>",
+                            esc(z.numar || ""), lei(z.numerar || 0),
+                            lei(z.card || 0), lei(z.total)] };
+        }), 2);
+  }
+
+  function randeazaAchizitii() {
+    document.getElementById("tab-facturi-in").innerHTML = tabel(
+      ["Document", "Furnizor", "Data", "Stare", "Total (" + MONEDA + ")"],
+      facturi("in").map(function (f) {
+        var restant = (f.total || 0) - (f.platit || 0);
+        var stare = restant <= 0 ? '<span class="pill pill-good">achitata</span>'
+                                 : '<span class="pill pill-warn">de platit</span>';
+        return { click: "plateste:" + f.id,
+                 celule: [esc(f.numar || ""), esc(f.partener),
+                          '<span class="nw">' + esc(f.data) + "</span>",
+                          stare, lei(f.total)] };
+      }), 3);
+  }
+
+  function randeazaStoc() {
+    var subPrag = S.products.filter(function (p) {
+      return p.tip !== "serviciu" && p.prag > 0 && (p.stoc || 0) <= p.prag;
+    });
+    document.getElementById("tiles-stoc").innerHTML = [
+      tile("Valoare stoc", lei(valoareStoc()), "la cost mediu ponderat"),
+      tile("De reaprovizionat", String(subPrag.length),
+           subPrag.length ? subPrag.map(function (p) { return p.sku; }).join(", ") : "nimic sub prag",
+           subPrag.length ? "warn" : "good")
+    ].join("");
+
+    document.getElementById("tab-stoc").innerHTML = tabel(
+      ["Cod", "Denumire", "Tip", "Stoc", "Cost mediu", "Valoare (" + MONEDA + ")"],
+      S.products.slice().sort(function (a, b) { return (a.nume || "").localeCompare(b.nume || ""); })
+        .map(function (p) {
+          var val = p.tip === "serviciu" ? 0 : Math.round((p.stoc || 0) * (p.cost || 0));
+          var stoc = p.tip === "serviciu" ? "-"
+            : lei((p.stoc || 0) * 100, 0) + " " + esc(p.um || "buc");
+          return { celule: [esc(p.sku), esc(p.nume),
+                            '<span class="pill pill-mut">' + esc(p.tip) + "</span>",
+                            stoc, lei(p.cost || 0), p.tip === "serviciu" ? "-" : lei(val)] };
+        }), 3);
+
+    var peCentru = {};
+    var peArticol = {};
+    S.consumptions.forEach(function (b) {
+      var c = b.centru || "(nespecificat)";
+      peCentru[c] = (peCentru[c] || 0) + (b.valoare || 0);
+      (b.linii || []).forEach(function (l) {
+        if (!peArticol[l.sku]) peArticol[l.sku] = { cant: 0, valoare: 0 };
+        peArticol[l.sku].cant += l.cant || 0;
+        peArticol[l.sku].valoare += l.valoare || 0;
+      });
+    });
+    document.getElementById("chart-consum").innerHTML = bareOrizontale(
+      Object.keys(peCentru).map(function (k) { return { eticheta: k, valoare: peCentru[k] }; })
+        .sort(function (a, b) { return b.valoare - a.valoare; }));
+    document.getElementById("tab-consum").innerHTML = tabel(
+      ["Cod", "Denumire", "Cantitate", "Valoare (" + MONEDA + ")"],
+      Object.keys(peArticol).sort(function (a, b) {
+        return peArticol[b].valoare - peArticol[a].valoare;
+      }).map(function (sku) {
+        var p = produsDupaSku(sku);
+        return { celule: [esc(sku), esc(p ? p.nume : sku),
+                          lei(peArticol[sku].cant * 100, 0) + " " + esc(p ? p.um : ""),
+                          lei(peArticol[sku].valoare)] };
+      }), 2);
+  }
+
+  function randeazaClienti() {
+    document.getElementById("tab-clienti").innerHTML = tabel(
+      ["Client", "CUI", "Termen", "Sold restant (" + MONEDA + ")"],
+      S.clients.slice().sort(function (a, b) { return (a.nume || "").localeCompare(b.nume || ""); })
+        .map(function (c) {
+          var sold = facturi("out").filter(function (f) { return f.partener === c.nume; })
+            .reduce(function (t, f) { return t + Math.max(0, (f.total || 0) - (f.incasat || 0)); }, 0);
+          return { celule: [esc(c.nume), esc(c.cui || ""), (c.termen || 30) + " zile", lei(sold)] };
+        }), 2);
+  }
+
+  function randeaza() {
+    randeazaAcasa();
+    randeazaVanzari();
+    randeazaAchizitii();
+    randeazaStoc();
+    randeazaClienti();
+  }
+
+  // -------------------------------------------------------------- formulare
+  var foaie = document.getElementById("sheet");
+  var foaieTitlu = document.getElementById("sheet-title");
+  var foaieCorp = document.getElementById("sheet-body");
+  var linii = [];
+
+  function inchide() { foaie.hidden = true; linii = []; }
+  function mesaj(text, ton) {
+    var box = document.getElementById("form-msg");
+    if (box) { box.className = "msg msg-" + (ton || "bad"); box.textContent = text; box.hidden = false; }
+  }
+  function camp(nume, eticheta, tip, valoare, extra) {
+    return '<label class="field"><span>' + esc(eticheta) + '</span><input name="' + nume +
+      '" type="' + tip + '" value="' + esc(valoare === undefined ? "" : valoare) + '" ' +
+      (extra || "") + "></label>";
+  }
+  function alege(nume, eticheta, optiuni, selectat) {
+    return '<label class="field"><span>' + esc(eticheta) + '</span><select name="' + nume + '">' +
+      optiuni.map(function (o) {
+        return '<option value="' + esc(o.v) + '"' + (o.v === selectat ? " selected" : "") + ">" +
+          esc(o.t) + "</option>";
+      }).join("") + "</select></label>";
+  }
+  function val(nume) {
+    var el = foaieCorp.querySelector('[name="' + nume + '"]');
+    return el ? el.value.trim() : "";
+  }
+  function optiuniProduse(doarStoc) {
+    return S.products.filter(function (p) { return doarStoc ? p.tip !== "serviciu" : true; })
+      .map(function (p) { return { v: p.sku, t: p.sku + " - " + p.nume }; });
+  }
+  function randeazaLinii(coloanaPret) {
+    var box = document.getElementById("linii");
+    if (!box) return;
+    if (!linii.length) {
+      box.innerHTML = '<p class="empty">Nicio pozitie adaugata.</p>';
+    } else {
+      box.innerHTML = linii.map(function (l, i) {
+        return '<div class="line-row"><span class="grow">' + esc(l.nume) + "</span>" +
+          '<span class="num">' + lei(l.cant * 100, 0) + " x " + lei(l.pret) + "</span>" +
+          '<button class="btn btn-ghost btn-danger" data-sterge-linie="' + i + '">x</button></div>';
+      }).join("");
+    }
+    var t = document.getElementById("total-linii");
+    if (t) {
+      var net = linii.reduce(function (s, l) { return s + Math.round(l.cant * l.pret); }, 0);
+      var tva = linii.reduce(function (s, l) {
+        return s + tvaDin(Math.round(l.cant * l.pret), l.cota);
+      }, 0);
+      t.innerHTML = '<div class="total-row"><span>Net</span><span>' + lei(net) + "</span></div>" +
+        '<div class="total-row"><span>TVA</span><span>' + lei(tva) + "</span></div>" +
+        '<div class="total-row big"><span>Total</span><span>' + lei(net + tva) + " " + MONEDA +
+        "</span></div>";
+    }
+  }
+
+  var FORMULARE = {
+    "factura-out": {
+      titlu: "Factura emisa",
+      corp: function () {
+        var azii = azi();
+        return '<div id="form-msg" hidden></div>' +
+          '<label class="field"><span>Client</span><input name="client" list="lista-clienti" ' +
+          'placeholder="scrie sau alege"></label>' +
+          '<datalist id="lista-clienti">' + S.clients.map(function (c) {
+            return '<option value="' + esc(c.nume) + '">';
+          }).join("") + "</datalist>" +
+          '<div class="grid2">' + camp("data", "Data", "date", azii) +
+          camp("scadenta", "Scadenta", "date", plusZile(azii, 30)) + "</div>" +
+          "<h3>Pozitii</h3>" +
+          '<div class="lines"><div id="linii"></div>' +
+          '<div class="grid2">' + alege("sku", "Articol", optiuniProduse(false)) +
+          camp("cant", "Cantitate", "number", "1", 'step="any" min="0"') + "</div>" +
+          '<div class="grid2">' + camp("pret", "Pret unitar fara TVA", "number", "", 'step="any"') +
+          camp("cota", "Cota TVA %", "number", TVA, 'step="1"') + "</div>" +
+          '<button class="btn" id="adauga-linie">Adauga pozitia</button></div>' +
+          '<div id="total-linii"></div>' +
+          '<div class="actions"><button class="btn btn-primary" id="salveaza">Emite factura</button></div>';
+      },
+      dupaRandare: function () {
+        var sel = foaieCorp.querySelector('[name="sku"]');
+        function umple() {
+          var p = produsDupaSku(sel.value);
+          if (!p) return;
+          foaieCorp.querySelector('[name="pret"]').value = ((p.pret || 0) / 100).toFixed(2);
+          foaieCorp.querySelector('[name="cota"]').value = p.tva === undefined ? TVA : p.tva;
+        }
+        if (sel) { sel.addEventListener("change", umple); umple(); }
+        var cl = foaieCorp.querySelector('[name="client"]');
+        if (cl) cl.addEventListener("change", function () {
+          for (var i = 0; i < S.clients.length; i++) {
+            if (S.clients[i].nume === cl.value) {
+              foaieCorp.querySelector('[name="scadenta"]').value =
+                plusZile(val("data") || azi(), S.clients[i].termen || 30);
+            }
+          }
+        });
+        randeazaLinii();
+      },
+      adaugaLinie: function () {
+        var p = produsDupaSku(val("sku"));
+        var cant = Number(val("cant").replace(",", "."));
+        if (!p) return mesaj("Alege un articol.");
+        if (!(cant > 0)) return mesaj("Cantitatea trebuie sa fie mai mare ca zero.");
+        linii.push({ sku: p.sku, nume: p.nume, cant: cant, pret: bani(val("pret")),
+                     cota: Number(val("cota")) || 0 });
+        randeazaLinii();
+      },
+      salveaza: async function () {
+        var client = val("client");
+        if (!client) return mesaj("Scrie numele clientului.");
+        if (!linii.length) return mesaj("Adauga cel putin o pozitie.");
+        for (var i = 0; i < linii.length; i++) {
+          var p = produsDupaSku(linii[i].sku);
+          if (p && p.tip !== "serviciu" && (p.stoc || 0) < linii[i].cant) {
+            return mesaj("Stoc insuficient pentru " + p.sku + ": ai " + p.stoc + " " +
+                         (p.um || "buc") + ", ceri " + linii[i].cant + ".");
+          }
+        }
+        var net = 0, tva = 0, cost = 0;
+        var actualizari = [];
+        linii.forEach(function (l) {
+          var n = Math.round(l.cant * l.pret);
+          net += n; tva += tvaDin(n, l.cota);
+          var p = produsDupaSku(l.sku);
+          if (p && p.tip !== "serviciu") {
+            cost += Math.round(l.cant * (p.cost || 0));
+            actualizari.push({ id: p.id, stoc: Math.round(((p.stoc || 0) - l.cant) * 1e6) / 1e6 });
+          }
+        });
+        var numar = "FACT-" + (facturi("out").length + 1);
+        await scrie("invoices", id("f"), {
+          tip: "out", numar: numar, partener: client, data: val("data") || azi(),
+          scadenta: val("scadenta") || val("data") || azi(), linii: linii,
+          net: net, tva: tva, total: net + tva, incasat: 0, cost: cost, status: "emisa"
+        });
+        for (var j = 0; j < actualizari.length; j++) {
+          await db.doc("products/" + actualizari[j].id).update({ stoc: actualizari[j].stoc });
+        }
+        inchide();
+      }
+    },
+
+    "factura-in": {
+      titlu: "Factura primita",
+      corp: function () {
+        return '<div id="form-msg" hidden></div>' +
+          camp("furnizor", "Furnizor", "text", "") +
+          '<div class="grid2">' + camp("numar", "Numar document", "text", "") +
+          camp("data", "Data", "date", azi()) + "</div>" +
+          "<h3>Pozitii receptionate</h3>" +
+          '<div class="lines"><div id="linii"></div>' +
+          '<div class="grid2">' + alege("sku", "Articol", optiuniProduse(true)) +
+          camp("cant", "Cantitate", "number", "1", 'step="any" min="0"') + "</div>" +
+          '<div class="grid2">' + camp("pret", "Cost unitar fara TVA", "number", "", 'step="any"') +
+          camp("cota", "Cota TVA %", "number", TVA, 'step="1"') + "</div>" +
+          '<button class="btn" id="adauga-linie">Adauga pozitia</button></div>' +
+          '<div id="total-linii"></div>' +
+          '<div class="actions"><button class="btn btn-primary" id="salveaza">Inregistreaza</button></div>';
+      },
+      dupaRandare: function () {
+        var sel = foaieCorp.querySelector('[name="sku"]');
+        function umple() {
+          var p = produsDupaSku(sel.value);
+          if (p) foaieCorp.querySelector('[name="pret"]').value = ((p.cost || 0) / 100).toFixed(2);
+        }
+        if (sel) { sel.addEventListener("change", umple); umple(); }
+        randeazaLinii();
+      },
+      adaugaLinie: function () {
+        var p = produsDupaSku(val("sku"));
+        var cant = Number(val("cant").replace(",", "."));
+        if (!p) return mesaj("Alege un articol. Daca nu exista, creeaza-l intai din Stoc.");
+        if (!(cant > 0)) return mesaj("Cantitatea trebuie sa fie mai mare ca zero.");
+        linii.push({ sku: p.sku, nume: p.nume, cant: cant, pret: bani(val("pret")),
+                     cota: Number(val("cota")) || 0 });
+        randeazaLinii();
+      },
+      salveaza: async function () {
+        if (!val("furnizor")) return mesaj("Scrie numele furnizorului.");
+        if (!linii.length) return mesaj("Adauga cel putin o pozitie.");
+        var net = 0, tva = 0;
+        var actualizari = [];
+        linii.forEach(function (l) {
+          var n = Math.round(l.cant * l.pret);
+          net += n; tva += tvaDin(n, l.cota);
+          var p = produsDupaSku(l.sku);
+          if (!p) return;
+          // Cost mediu ponderat: valoarea veche plus cea noua, impartite la stocul total.
+          var stocVechi = p.stoc || 0;
+          var stocNou = Math.round((stocVechi + l.cant) * 1e6) / 1e6;
+          var valoare = Math.round(stocVechi * (p.cost || 0)) + n;
+          actualizari.push({ id: p.id, stoc: stocNou,
+                             cost: stocNou > 0 ? Math.round(valoare / stocNou) : l.pret });
+        });
+        await scrie("invoices", id("f"), {
+          tip: "in", numar: val("numar"), partener: val("furnizor"), data: val("data") || azi(),
+          linii: linii, net: net, tva: tva, total: net + tva, platit: 0, status: "emisa"
+        });
+        for (var j = 0; j < actualizari.length; j++) {
+          await db.doc("products/" + actualizari[j].id)
+            .update({ stoc: actualizari[j].stoc, cost: actualizari[j].cost });
+        }
+        inchide();
+      }
+    },
+
+    "raport-z": {
+      titlu: "Raport Z",
+      corp: function () {
+        return '<div id="form-msg" hidden></div>' +
+          '<div class="grid2">' + camp("data", "Data", "date", azi()) +
+          camp("numar", "Numar Z", "text", String(S.zreports.length + 1)) + "</div>" +
+          camp("total", "Total incasat, cu TVA", "number", "", 'step="any" inputmode="decimal"') +
+          '<div class="grid2">' + camp("cota", "Cota TVA %", "number", TVA, 'step="1"') +
+          camp("numerar", "Din care numerar", "number", "", 'step="any"') + "</div>" +
+          camp("card", "Din care card", "number", "", 'step="any"') +
+          '<p class="note">Raportul Z inregistreaza incasarea si TVA-ul zilei. Nu scade stocul, ' +
+          "pentru ca bonul fiscal nu spune ce articole s-au vandut - descarcarea de gestiune se " +
+          "face separat, dintr-un bon de consum sau o factura.</p>" +
+          '<div class="actions"><button class="btn btn-primary" id="salveaza">Salveaza</button></div>';
+      },
+      salveaza: async function () {
+        var total = bani(val("total"));
+        if (total <= 0) return mesaj("Scrie totalul incasat.");
+        var cota = Number(val("cota")) || 0;
+        var net = Math.round(total * 100 / (100 + cota));
+        await scrie("zreports", id("z"), {
+          data: val("data") || azi(), numar: val("numar"), total: total, net: net,
+          tva: total - net, cota: cota, numerar: bani(val("numerar")), card: bani(val("card"))
+        });
+        inchide();
+      }
+    },
+
+    produs: {
+      titlu: "Articol nou",
+      corp: function () {
+        return '<div id="form-msg" hidden></div>' +
+          '<div class="grid2">' + camp("sku", "Cod", "text", "") +
+          camp("um", "Unitate de masura", "text", "buc") + "</div>" +
+          camp("nume", "Denumire", "text", "") +
+          alege("tip", "Tip", [{ v: "marfa", t: "Marfa (se revinde)" },
+                               { v: "consumabil", t: "Consumabil (se foloseste in firma)" },
+                               { v: "serviciu", t: "Serviciu (fara stoc)" }]) +
+          '<div class="grid2">' + camp("pret", "Pret vanzare fara TVA", "number", "0", 'step="any"') +
+          camp("tva", "Cota TVA %", "number", TVA, 'step="1"') + "</div>" +
+          camp("prag", "Prag de reaprovizionare", "number", "0", 'step="any"') +
+          '<div class="actions"><button class="btn btn-primary" id="salveaza">Salveaza</button></div>';
+      },
+      salveaza: async function () {
+        var sku = val("sku");
+        if (!sku) return mesaj("Codul articolului e obligatoriu.");
+        if (produsDupaSku(sku)) return mesaj("Exista deja un articol cu codul " + sku + ".");
+        if (!val("nume")) return mesaj("Scrie denumirea articolului.");
+        await scrie("products", id("p"), {
+          sku: sku, nume: val("nume"), um: val("um") || "buc", tip: val("tip") || "marfa",
+          pret: bani(val("pret")), tva: Number(val("tva")) || 0, stoc: 0, cost: 0,
+          prag: Number(val("prag").replace(",", ".")) || 0
+        });
+        inchide();
+      }
+    },
+
+    bon: {
+      titlu: "Bon de consum",
+      corp: function () {
+        return '<div id="form-msg" hidden></div>' +
+          '<div class="grid2">' + camp("data", "Data", "date", azi()) +
+          camp("centru", "Centru de cost", "text", "", 'placeholder="santier, atelier, birou"') +
+          "</div>" + camp("motiv", "Motiv", "text", "") +
+          "<h3>Pozitii</h3>" +
+          '<div class="lines"><div id="linii"></div>' +
+          '<div class="grid2">' + alege("sku", "Articol", optiuniProduse(true)) +
+          camp("cant", "Cantitate", "number", "1", 'step="any" min="0"') + "</div>" +
+          '<button class="btn" id="adauga-linie">Adauga pozitia</button></div>' +
+          '<div class="actions"><button class="btn btn-primary" id="salveaza">Da in consum</button></div>';
+      },
+      dupaRandare: function () { randeazaLinii(); },
+      adaugaLinie: function () {
+        var p = produsDupaSku(val("sku"));
+        var cant = Number(val("cant").replace(",", "."));
+        if (!p) return mesaj("Alege un articol.");
+        if (!(cant > 0)) return mesaj("Cantitatea trebuie sa fie mai mare ca zero.");
+        if ((p.stoc || 0) < cant) {
+          return mesaj("Stoc insuficient pentru " + p.sku + ": ai " + (p.stoc || 0) + " " +
+                       (p.um || "buc") + ".");
+        }
+        linii.push({ sku: p.sku, nume: p.nume, cant: cant, pret: p.cost || 0, cota: 0 });
+        randeazaLinii();
+      },
+      salveaza: async function () {
+        if (!linii.length) return mesaj("Adauga cel putin o pozitie.");
+        var valoare = 0;
+        var actualizari = [];
+        var pozitii = linii.map(function (l) {
+          var p = produsDupaSku(l.sku);
+          var v = Math.round(l.cant * (p ? p.cost || 0 : 0));
+          valoare += v;
+          if (p) actualizari.push({ id: p.id, stoc: Math.round(((p.stoc || 0) - l.cant) * 1e6) / 1e6 });
+          return { sku: l.sku, cant: l.cant, cost: p ? p.cost || 0 : 0, valoare: v };
+        });
+        await scrie("consumptions", id("b"), {
+          data: val("data") || azi(), numar: S.consumptions.length + 1, centru: val("centru"),
+          motiv: val("motiv"), linii: pozitii, valoare: valoare
+        });
+        for (var j = 0; j < actualizari.length; j++) {
+          await db.doc("products/" + actualizari[j].id).update({ stoc: actualizari[j].stoc });
+        }
+        inchide();
+      }
+    },
+
+    client: {
+      titlu: "Client nou",
+      corp: function () {
+        return '<div id="form-msg" hidden></div>' +
+          camp("nume", "Denumire", "text", "") +
+          '<div class="grid2">' + camp("cui", "CUI", "text", "") +
+          camp("termen", "Termen de plata, zile", "number", "30", 'step="1"') + "</div>" +
+          camp("email", "Email", "email", "") + camp("telefon", "Telefon", "tel", "") +
+          '<div class="actions"><button class="btn btn-primary" id="salveaza">Salveaza</button></div>';
+      },
+      salveaza: async function () {
+        if (!val("nume")) return mesaj("Scrie denumirea clientului.");
+        await scrie("clients", id("c"), {
+          nume: val("nume"), cui: val("cui"), termen: Number(val("termen")) || 30,
+          email: val("email"), telefon: val("telefon")
+        });
+        inchide();
+      }
+    }
+  };
+
+  function deschide(tip, context) {
+    var f = FORMULARE[tip];
+    if (!f) return;
+    linii = [];
+    foaieTitlu.textContent = f.titlu;
+    foaieCorp.innerHTML = f.corp(context);
+    foaie.hidden = false;
+    if (f.dupaRandare) f.dupaRandare(context);
+    foaieCorp.dataset.tip = tip;
+    var first = foaieCorp.querySelector("input, select");
+    if (first && window.innerWidth > 640) first.focus();
+  }
+
+  function deschidePlata(factura, incasare) {
+    var restant = (factura.total || 0) - (incasare ? factura.incasat || 0 : factura.platit || 0);
+    linii = [];
+    foaieTitlu.textContent = (incasare ? "Incasare " : "Plata ") + (factura.numar || "");
+    foaieCorp.innerHTML = '<div id="form-msg" hidden></div>' +
+      '<p class="note">' + esc(factura.partener) + " - restant " + lei(restant) + " " + MONEDA +
+      "</p>" + camp("suma", "Suma", "number", (restant / 100).toFixed(2), 'step="any"') +
+      camp("data", "Data", "date", azi()) +
+      '<div class="actions"><button class="btn btn-primary" id="salveaza-plata">Salveaza</button>' +
+      '<button class="btn btn-ghost" id="renunta">Renunta</button></div>';
+    foaie.hidden = false;
+    document.getElementById("renunta").onclick = inchide;
+    document.getElementById("salveaza-plata").onclick = async function () {
+      var suma = bani(val("suma"));
+      if (suma <= 0) return mesaj("Suma trebuie sa fie mai mare ca zero.");
+      if (suma > restant) return mesaj("Suma depaseste restul de plata.");
+      var patch = incasare
+        ? { incasat: (factura.incasat || 0) + suma }
+        : { platit: (factura.platit || 0) + suma };
+      try {
+        await db.doc("invoices/" + factura.id).update(patch);
+        inchide();
+      } catch (e) { mesaj("Nu am putut salva: " + (e && e.message ? e.message : e)); }
+    };
+  }
+
+  // ---------------------------------------------------------------- evenimente
+  document.querySelectorAll("nav button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      vizibil = b.dataset.view;
+      document.querySelectorAll("nav button").forEach(function (x) {
+        x.setAttribute("aria-selected", String(x === b));
+      });
+      document.querySelectorAll(".view").forEach(function (v) {
+        v.hidden = v.id !== "view-" + vizibil;
+      });
+      window.scrollTo({ top: 0, behavior: "instant" });
+    });
+  });
+
+  document.addEventListener("click", function (ev) {
+    var deschidere = ev.target.closest("[data-open]");
+    if (deschidere) { deschide(deschidere.dataset.open); return; }
+
+    if (ev.target.id === "adauga-linie") {
+      ev.preventDefault();
+      var f = FORMULARE[foaieCorp.dataset.tip];
+      if (f && f.adaugaLinie) f.adaugaLinie();
+      return;
+    }
+    if (ev.target.id === "salveaza") {
+      ev.preventDefault();
+      var form = FORMULARE[foaieCorp.dataset.tip];
+      if (!form) return;
+      ev.target.disabled = true;
+      Promise.resolve(form.salveaza()).catch(function (e) {
+        mesaj("Nu am putut salva: " + (e && e.message ? e.message : e));
+      }).then(function () { ev.target.disabled = false; });
+      return;
+    }
+    var stergeLinie = ev.target.closest("[data-sterge-linie]");
+    if (stergeLinie) {
+      linii.splice(Number(stergeLinie.dataset.stergeLinie), 1);
+      randeazaLinii();
+      return;
+    }
+    var rand = ev.target.closest("[data-click]");
+    if (rand) {
+      var parti = rand.dataset.click.split(":");
+      var factura = get("invoices", parti[1]);
+      if (factura) deschidePlata(factura, parti[0] === "incaseaza");
+      return;
+    }
+    if (ev.target.id === "sterge-demo") { stergeDemo(); return; }
+  });
+
+  document.getElementById("sheet-close").addEventListener("click", inchide);
+  foaie.addEventListener("click", function (ev) { if (ev.target === foaie) inchide(); });
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Escape" && !foaie.hidden) inchide();
+  });
+
+  async function stergeDemo() {
+    if (!db) return;
+    if (!window.confirm("Sterg toate datele demonstrative? Operatia nu se poate anula.")) return;
+    for (var i = 0; i < COLECTII.length; i++) {
+      var colectie = COLECTII[i];
+      var docs = S[colectie].slice();
+      for (var j = 0; j < docs.length; j++) await sterge(colectie, docs[j].id);
+    }
+    await scrie("meta", "state", { demo: false, firma: "Firma mea" });
+  }
+
+  // --------------------------------------------------------------------- boot
+  function stare(text, clasa) {
+    var el = document.getElementById("stare");
+    el.textContent = text;
+    el.className = "pill " + clasa;
+  }
+
+  function faraBaza() {
+    stare("fara conexiune", "pill-bad");
+    document.getElementById("tiles").innerHTML =
+      '<p class="empty">Nu am putut deschide baza de date a paginii. Reincarca pagina; ' +
+      "daca nu merge nici asa, deschide-o din contul tau Claude, nu dintr-un link copiat.</p>";
+    document.querySelectorAll("[data-open]").forEach(function (b) { b.disabled = true; });
+  }
+
+  async function porneste() {
+    try {
+      db = await claude.use("db");
+    } catch (e) { db = null; }
+    if (!db) { faraBaza(); return; }
+
+    var primite = 0;
+    COLECTII.forEach(function (colectie) {
+      db.collection(colectie).onSnapshot(function (snap) {
+        S[colectie] = snap.docs.map(function (d) {
+          var body = d.data() || {};
+          var copie = { id: d.id };
+          Object.keys(body).forEach(function (k) { copie[k] = body[k]; });
+          return copie;
+        });
+        primite++;
+        var m = get("meta", "state");
+        document.getElementById("firma").textContent = m && m.firma ? m.firma : "firma mea";
+        stare("date la zi", "pill-good");
+        randeaza();
+      }, function () {
+        stare("conexiune intrerupta", "pill-warn");
+      });
+    });
+
+    setTimeout(function () { if (!primite) stare("nu raspunde", "pill-warn"); }, 12000);
+  }
+
+  randeaza();
+  porneste();
+})();
+</script>
