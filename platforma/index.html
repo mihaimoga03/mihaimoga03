@@ -648,9 +648,14 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
       var c = b.centru || "(nespecificat)";
       peCentru[c] = (peCentru[c] || 0) + (b.valoare || 0);
       (b.linii || []).forEach(function (l) {
-        if (!peArticol[l.sku]) peArticol[l.sku] = { cant: 0, valoare: 0 };
-        peArticol[l.sku].cant += l.cant || 0;
-        peArticol[l.sku].valoare += l.valoare || 0;
+        // Un consum poate viza si un articol care nu mai e in nomenclator - a fost
+        // consumat integral. Atunci il tinem minte dupa denumirea de pe bon.
+        var cheie = l.sku || l.nume || "?";
+        if (!peArticol[cheie]) {
+          peArticol[cheie] = { cant: 0, valoare: 0, cod: l.sku || "", nume: l.nume || "" };
+        }
+        peArticol[cheie].cant += l.cant || 0;
+        peArticol[cheie].valoare += l.valoare || 0;
       });
     });
     document.getElementById("chart-consum").innerHTML = bareOrizontale(
@@ -660,11 +665,12 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
       ["Cod", "Denumire", "Cantitate", "Valoare (" + MONEDA + ")"],
       Object.keys(peArticol).sort(function (a, b) {
         return peArticol[b].valoare - peArticol[a].valoare;
-      }).map(function (sku) {
-        var p = produsDupaSku(sku);
-        return { celule: [esc(sku), esc(p ? p.nume : sku),
-                          lei(peArticol[sku].cant * 100, 0) + " " + esc(p ? p.um : ""),
-                          lei(peArticol[sku].valoare)] };
+      }).map(function (cheie) {
+        var linie = peArticol[cheie];
+        var p = linie.cod ? produsDupaSku(linie.cod) : null;
+        return { celule: [esc(linie.cod || "-"), esc(p ? p.nume : linie.nume || cheie),
+                          lei(linie.cant * 100, 0) + " " + esc(p ? p.um : "buc"),
+                          lei(linie.valoare)] };
       }), 2);
   }
 
