@@ -5,8 +5,17 @@ capacitatea `db` — o bază de date pe server, partajată între dispozitive. S
 deschide din contul Claude al proprietarului, de pe telefon sau de pe calculator.
 
 Ce face: datele firmei, facturi emise și primite, rapoarte Z, bonuri de consum,
-nomenclator de articole cu cost mediu ponderat, corecții de stoc după inventar,
-clienți, grafice de vânzări și scadențe.
+nomenclator de articole pe categorii cu cost mediu ponderat, corecții de stoc după
+inventar, istoric lunar, clienți, grafice — și un panou de sfaturi în care Claude
+citește cifrele din aplicație și răspunde la întrebări despre firmă.
+
+Fiecare articol are o **categorie**. Fila Stoc grupează după ea, arată valoarea pe
+categorii și filtrează cu un rând de chips-uri. `clasificare.py` conține regulile
+care încadrează automat un articol după denumire — le poți rula peste un export nou
+de stoc ca să păstrezi aceleași categorii de la o lună la alta.
+
+Fila **Istoric** ține o linie pe lună (venituri, cheltuieli, stoc final) și o poate
+precompleta din facturile, rapoartele Z și bonurile deja înregistrate pe luna aceea.
 
 Fila **Setări** ține datele firmei (denumire, CUI, adresă, cota implicită de TVA,
 seria facturilor) în `meta/state` și conține un tabel cu locul fiecărei operațiuni.
@@ -27,6 +36,12 @@ Cele două împart regulile de business (bani în unități întregi, cost mediu
 ponderat, TVA la 21%), dar sunt implementări separate — o modificare într-una
 nu se propagă singură în cealaltă.
 
-Colecțiile din baza artefactului: `products`, `clients`, `invoices` (cu `tip`
-`out` sau `in`), `zreports`, `consumptions`, `adjustments`, `meta`. Sumele sunt numere întregi
+Colecțiile din baza artefactului: `products` (cu `categorie` și `gestiune`),
+`clients`, `invoices` (cu `tip` `out` sau `in`), `zreports`, `consumptions`,
+`adjustments`, `periods` (o lună per document, id `YYYY-MM`), `meta`.
+
+Capacitățile declarate: `db` pentru bază, `sample` pentru panoul de sfaturi.
+Rezumatul trimis modelului e construit din datele paginii — categorii, cele mai
+valoroase poziții, adaosurile mici, istoricul lunar, consumurile, soldurile — nu
+baza întreagă. Sumele sunt numere întregi
 de bani, ca în engine-ul Python.

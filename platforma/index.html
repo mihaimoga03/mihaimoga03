@@ -109,6 +109,24 @@ tbody tr.clickable:hover{background:var(--surface-2)}
 .pill-mut{color:var(--ink-3)}
 .nw{white-space:nowrap}
 
+/* filtre pe categorii */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}
+.chip{appearance:none;font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;
+  padding:5px 11px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);
+  color:var(--ink-2);white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);
+  color:var(--accent-ink);font-weight:600}
+.chip .n{opacity:.65;margin-left:5px;font-variant-numeric:tabular-nums}
+tr.grup td{background:var(--surface-3);font-weight:600;font-size:12px;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-2)}
+
+/* raspunsul modelului */
+.ai{white-space:pre-wrap;font-size:14.5px;line-height:1.6}
+.ai h4{font-family:"IBM Plex Serif",Georgia,serif;font-size:15px;margin:16px 0 6px;
+  color:var(--ink)}
+.ai strong{font-weight:600}
+.ai-gandeste{color:var(--ink-3);font-style:italic}
+
 /* grafice */
 svg.chart{width:100%;height:auto;display:block}
 .grid{stroke:var(--rule);stroke-width:1}
@@ -173,6 +191,8 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
       <button role="tab" data-view="achizitii" aria-selected="false">Achizitii</button>
       <button role="tab" data-view="stoc" aria-selected="false">Stoc</button>
       <button role="tab" data-view="clienti" aria-selected="false">Clienti</button>
+      <button role="tab" data-view="istoric" aria-selected="false">Istoric</button>
+      <button role="tab" data-view="sfaturi" aria-selected="false">Sfaturi</button>
       <button role="tab" data-view="setari" aria-selected="false">Setari</button>
     </nav>
   </div>
@@ -223,8 +243,14 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
       <button class="btn" data-open="bon">Bon de consum</button>
     </div>
     <div class="tiles" id="tiles-stoc"></div>
+
+    <h3>Valoare pe categorii</h3>
+    <div class="panel"><div id="chart-categorii"></div></div>
+
     <h3>Articole</h3>
-    <div class="panel"><div class="scroll"><table id="tab-stoc"></table></div></div>
+    <div class="chips" id="filtru-categorii"></div>
+    <div class="panel"><div class="scroll"><table id="tab-stoc"></table></div>
+      <p class="note" id="nota-stoc"></p></div>
     <h3>Corectii de stoc</h3>
     <div class="panel"><div class="scroll"><table id="tab-ajustari"></table></div>
       <p class="note">Apasa pe un articol din tabelul de mai sus ca sa-i corectezi stocul dupa
@@ -241,6 +267,47 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
       <button class="btn btn-primary" data-open="client">Client nou</button>
     </div>
     <div class="panel"><div class="scroll"><table id="tab-clienti"></table></div></div>
+  </section>
+
+  <section class="view" id="view-istoric" hidden>
+    <h2>Istoricul firmei</h2>
+    <div class="actions">
+      <button class="btn btn-primary" data-open="luna">Adauga o luna</button>
+    </div>
+    <p class="note">O linie pe luna, asa cum o citesti din raportul de la contabil sau
+      din Oblio. Ce inregistrezi aici ramane, ca sa poti compara lunile intre ele.</p>
+
+    <h3>Venituri si cheltuieli pe luni</h3>
+    <div class="panel"><div id="chart-istoric-venit"></div></div>
+
+    <h3>Valoarea stocului la final de luna</h3>
+    <div class="panel"><div id="chart-istoric-stoc"></div></div>
+
+    <h3>Situatia pe luni</h3>
+    <div class="panel"><div class="scroll"><table id="tab-istoric"></table></div></div>
+  </section>
+
+  <section class="view" id="view-sfaturi" hidden>
+    <h2>Ce ar trebui sa fac</h2>
+    <p class="note">Claude citeste cifrele din aplicatie - stoc, categorii, istoric,
+      consumuri, facturi - si iti spune ce vede. Nu iese din datele tale si nu inventeaza
+      cifre.</p>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="cere-analiza">Analizeaza firma</button>
+      <button class="btn" id="cere-stoc-mort">Ce stoc sta degeaba</button>
+      <button class="btn" id="cere-preturi">Unde am marja prea mica</button>
+    </div>
+
+    <label class="field" style="margin-top:14px">
+      <span>Sau intreaba tu ceva</span>
+      <input id="intrebare" placeholder="ex: merita sa mai cumpar folii de laminare?">
+    </label>
+    <div class="actions"><button class="btn" id="cere-raspuns">Intreaba</button></div>
+
+    <div class="panel" id="raspuns-ai" style="margin-top:14px">
+      <p class="empty">Apasa un buton de mai sus ca sa incepi.</p>
+    </div>
   </section>
 
   <section class="view" id="view-setari" hidden>
@@ -295,11 +362,18 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
   var MONEDA = "RON";
   var LUNI = ["ian","feb","mar","apr","mai","iun","iul","aug","sep","oct","noi","dec"];
   var COLECTII = ["products", "clients", "invoices", "zreports", "consumptions",
-                "adjustments", "meta"];
+                "adjustments", "periods", "meta"];
+
+  var CATEGORII = ["Ecrane si display", "Baterii si acumulatori", "Huse si carcase",
+    "Folii de protectie", "Cabluri si adaptoare", "Incarcatoare si alimentare",
+    "Conectori si benzi flex", "Camere si senzori", "Memorii si stocare", "Audio", "Auto",
+    "Laptop si PC", "Console", "Componente electronice", "Telefoane si tablete",
+    "Scule si intretinere", "Altele"];
+  var filtruCategorie = null;
 
   var db = null;
   var S = { products: [], clients: [], invoices: [], zreports: [], consumptions: [],
-          adjustments: [], meta: [] };
+          adjustments: [], periods: [], meta: [] };
   var vizibil = "acasa";
 
   // ------------------------------------------------------------------- bani
@@ -369,7 +443,7 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
     if (!db) throw new Error("Nu am legatura cu baza de date.");
     await db.doc(colectie + "/" + docId).set(date);
   }
-  async function sterge(colectie, docId) {
+  async function sterge_(colectie, docId) {
     if (db) await db.doc(colectie + "/" + docId).delete();
   }
 
@@ -448,6 +522,9 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
       return '<th class="' + (i >= nd ? "num" : "") + '">' + esc(c) + "</th>";
     }).join("");
     var tbody = randuri.map(function (r) {
+      if (r.grup) {
+        return '<tr class="grup"><td colspan="' + capuri.length + '">' + esc(r.grup) + "</td></tr>";
+      }
       var celule = r.celule.map(function (c, i) {
         return '<td class="' + (i >= nd ? "num" : "") + '">' + c + "</td>";
       }).join("");
@@ -609,29 +686,84 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
       }), 3);
   }
 
+  function categoriiCuTotal() {
+    var m = {};
+    S.products.forEach(function (p) {
+      if (p.tip === "serviciu") return;
+      var c = p.categorie || "Altele";
+      if (!m[c]) m[c] = { nume: c, articole: 0, bucati: 0, valoare: 0 };
+      m[c].articole++;
+      m[c].bucati += p.stoc || 0;
+      m[c].valoare += Math.round((p.stoc || 0) * (p.cost || 0));
+    });
+    return Object.keys(m).map(function (k) { return m[k]; })
+      .sort(function (a, b) { return b.valoare - a.valoare; });
+  }
+
+  function randStoc(p) {
+    var val = Math.round((p.stoc || 0) * (p.cost || 0));
+    return { click: "ajusteaza:" + p.id,
+             celule: [esc(p.sku), esc(p.nume),
+                      lei((p.stoc || 0) * 100, 0) + " " + esc(p.um || "buc"),
+                      lei(p.cost || 0), lei(val)] };
+  }
+
   function randeazaStoc() {
+    var categorii = categoriiCuTotal();
     var subPrag = S.products.filter(function (p) {
       return p.tip !== "serviciu" && p.prag > 0 && (p.stoc || 0) <= p.prag;
     });
+    var bucati = S.products.reduce(function (t, p) {
+      return p.tip === "serviciu" ? t : t + (p.stoc || 0);
+    }, 0);
+
     document.getElementById("tiles-stoc").innerHTML = [
-      tile("Valoare stoc", lei(valoareStoc()), "la cost mediu ponderat"),
+      tile("Valoare stoc", lei(valoareStoc()), "la cost de achizitie"),
+      tile("Articole", String(S.products.filter(function (p) { return p.tip !== "serviciu"; }).length),
+           lei(bucati * 100, 0) + " bucati in total"),
+      tile("Categorii", String(categorii.length),
+           categorii.length ? "cea mai grea: " + categorii[0].nume : "-"),
       tile("De reaprovizionat", String(subPrag.length),
-           subPrag.length ? subPrag.map(function (p) { return p.sku; }).join(", ") : "nimic sub prag",
+           subPrag.length ? subPrag.map(function (p) { return p.sku; }).slice(0, 4).join(", ")
+                          : "nimic sub prag",
            subPrag.length ? "warn" : "good")
     ].join("");
 
+    document.getElementById("chart-categorii").innerHTML = bareOrizontale(
+      categorii.map(function (c) { return { eticheta: c.nume, valoare: c.valoare }; }));
+
+    // Filtrele: "Toate" plus cate un chip pe categorie, cu numarul de articole.
+    document.getElementById("filtru-categorii").innerHTML =
+      '<button class="chip" data-categorie="" aria-pressed="' + (!filtruCategorie) + '">Toate' +
+      '<span class="n">' + S.products.length + "</span></button>" +
+      categorii.map(function (c) {
+        return '<button class="chip" data-categorie="' + esc(c.nume) + '" aria-pressed="' +
+          (filtruCategorie === c.nume) + '">' + esc(c.nume) +
+          '<span class="n">' + c.articole + "</span></button>";
+      }).join("");
+
+    var randuri = [];
+    var afisate = 0;
+    categorii.forEach(function (c) {
+      if (filtruCategorie && filtruCategorie !== c.nume) return;
+      var ale = S.products.filter(function (p) {
+        return p.tip !== "serviciu" && (p.categorie || "Altele") === c.nume;
+      }).sort(function (a, b) { return (b.stoc * b.cost) - (a.stoc * a.cost); });
+      if (!ale.length) return;
+      randuri.push({ grup: c.nume + " - " + ale.length + " articole, " + lei(c.valoare) + " " + MONEDA });
+      ale.forEach(function (p) { randuri.push(randStoc(p)); afisate++; });
+    });
+    var servicii = S.products.filter(function (p) { return p.tip === "serviciu"; });
+    if (!filtruCategorie && servicii.length) {
+      randuri.push({ grup: "Servicii - fara stoc" });
+      servicii.forEach(function (p) {
+        randuri.push({ celule: [esc(p.sku), esc(p.nume), "-", "-", "-"] });
+      });
+    }
     document.getElementById("tab-stoc").innerHTML = tabel(
-      ["Cod", "Denumire", "Tip", "Stoc", "Cost mediu", "Valoare (" + MONEDA + ")"],
-      S.products.slice().sort(function (a, b) { return (a.nume || "").localeCompare(b.nume || ""); })
-        .map(function (p) {
-          var val = p.tip === "serviciu" ? 0 : Math.round((p.stoc || 0) * (p.cost || 0));
-          var stoc = p.tip === "serviciu" ? "-"
-            : lei((p.stoc || 0) * 100, 0) + " " + esc(p.um || "buc");
-          return { click: p.tip === "serviciu" ? null : "ajusteaza:" + p.id,
-                   celule: [esc(p.sku), esc(p.nume),
-                            '<span class="pill pill-mut">' + esc(p.tip) + "</span>",
-                            stoc, lei(p.cost || 0), p.tip === "serviciu" ? "-" : lei(val)] };
-        }), 3);
+      ["Cod", "Denumire", "Stoc", "Cost unitar", "Valoare (" + MONEDA + ")"], randuri, 2);
+    document.getElementById("nota-stoc").textContent =
+      afisate + " articole afisate. Apasa pe un rand ca sa corectezi stocul dupa inventar.";
 
     document.getElementById("tab-ajustari").innerHTML = tabel(
       ["Data", "Articol", "Motiv", "De la", "La"],
@@ -672,6 +804,45 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
                           lei(linie.cant * 100, 0) + " " + esc(p ? p.um : "buc"),
                           lei(linie.valoare)] };
       }), 2);
+  }
+
+  function luniOrdonate() {
+    return S.periods.slice().sort(function (a, b) { return (a.id || "").localeCompare(b.id || ""); });
+  }
+
+  function randeazaIstoric() {
+    var luni = luniOrdonate();
+    document.getElementById("chart-istoric-venit").innerHTML = luni.length
+      ? bareVerticale(luni.map(function (l) {
+          return { eticheta: (l.id || "").slice(2), valoare: l.venituri || 0 };
+        }), "Venituri pe luni")
+      : '<p class="empty">Nicio luna inregistrata inca.</p>';
+
+    document.getElementById("chart-istoric-stoc").innerHTML = luni.length
+      ? bareVerticale(luni.map(function (l) {
+          return { eticheta: (l.id || "").slice(2), valoare: l.stoc || 0 };
+        }), "Valoarea stocului pe luni")
+      : '<p class="empty">Nicio luna inregistrata inca.</p>';
+
+    var cumulat = 0;
+    document.getElementById("tab-istoric").innerHTML = tabel(
+      ["Luna", "Venituri", "Cheltuieli", "Rezultat", "Stoc final", "Rezultat cumulat"],
+      luni.slice().reverse().map(function (l) { return l; })
+        .reverse()  // calculam cumulatul in ordine cronologica, afisam invers
+        .map(function (l) {
+          var rezultat = (l.venituri || 0) - (l.cheltuieli || 0);
+          cumulat += rezultat;
+          return { luna: l, rezultat: rezultat, cumulat: cumulat };
+        })
+        .reverse()
+        .map(function (x) {
+          return { click: "luna:" + x.luna.id,
+                   celule: ['<span class="nw">' + esc(x.luna.id) + "</span>",
+                            lei(x.luna.venituri || 0), lei(x.luna.cheltuieli || 0),
+                            '<span class="' + (x.rezultat >= 0 ? "" : "offline") + '">' +
+                              lei(x.rezultat) + "</span>",
+                            lei(x.luna.stoc || 0), lei(x.cumulat)] };
+        }), 1);
   }
 
   function randeazaClienti() {
@@ -726,6 +897,7 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
     randeazaVanzari();
     randeazaAchizitii();
     randeazaStoc();
+    randeazaIstoric();
     randeazaClienti();
   }
 
@@ -975,6 +1147,9 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
           alege("tip", "Tip", [{ v: "marfa", t: "Marfa (se revinde)" },
                                { v: "consumabil", t: "Consumabil (se foloseste in firma)" },
                                { v: "serviciu", t: "Serviciu (fara stoc)" }]) +
+          alege("categorie", "Categorie", CATEGORII.map(function (c) {
+            return { v: c, t: c };
+          }), "Altele") +
           '<div class="grid2">' + camp("pret", "Pret vanzare fara TVA", "number", "0", 'step="any"') +
           camp("tva", "Cota TVA %", "number", cotaStandard(), 'step="1"') + "</div>" +
           camp("prag", "Prag de reaprovizionare", "number", "0", 'step="any"') +
@@ -997,6 +1172,7 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
         var docId = id("p");
         await scrie("products", docId, {
           sku: sku, nume: val("nume"), um: val("um") || "buc", tip: tip,
+          categorie: val("categorie") || "Altele",
           pret: bani(val("pret")), tva: Number(val("tva")) || 0, stoc: stoc, cost: cost,
           prag: Number(val("prag").replace(",", ".")) || 0
         });
@@ -1056,6 +1232,76 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
         for (var j = 0; j < actualizari.length; j++) {
           await db.doc("products/" + actualizari[j].id).update({ stoc: actualizari[j].stoc });
         }
+        inchide();
+      }
+    },
+
+    luna: {
+      titlu: "Situatia unei luni",
+      corp: function (context) {
+        var l = context || {};
+        var acum = new Date();
+        var implicit = l.id || (acum.getFullYear() + "-" +
+          String(acum.getMonth() + 1).padStart(2, "0"));
+        return '<div id="form-msg" hidden></div>' +
+          camp("luna", "Luna", "month", implicit) +
+          '<div class="grid2">' +
+          camp("venituri", "Venituri", "number", l.venituri ? (l.venituri / 100).toFixed(2) : "",
+               'step="any" inputmode="decimal"') +
+          camp("cheltuieli", "Cheltuieli", "number",
+               l.cheltuieli ? (l.cheltuieli / 100).toFixed(2) : "", 'step="any"') + "</div>" +
+          camp("stoc", "Valoarea stocului la final de luna", "number",
+               l.stoc ? (l.stoc / 100).toFixed(2) : "", 'step="any"') +
+          camp("obs", "Observatii", "text", l.obs || "") +
+          '<p class="note">Cifrele le iei din raportul lunar - Oblio sau de la contabil. ' +
+          "Butonul de mai jos completeaza automat din ce e deja in aplicatie, daca ai " +
+          "inregistrat facturile si rapoartele Z pe luna aceea.</p>" +
+          '<div class="actions">' +
+          '<button class="btn" id="umple-luna">Completeaza din aplicatie</button></div>' +
+          '<div class="actions"><button class="btn btn-primary" id="salveaza">Salveaza luna</button>' +
+          (l.id ? '<button class="btn btn-danger" id="sterge-luna">Sterge luna</button>' : "") +
+          "</div>";
+      },
+      dupaRandare: function () {
+        var buton = document.getElementById("umple-luna");
+        if (buton) buton.onclick = function (ev) {
+          ev.preventDefault();
+          var luna = val("luna");
+          if (!luna) return mesaj("Alege intai luna.");
+          var venit = 0, cheltuiala = 0;
+          facturi("out").forEach(function (f) {
+            if ((f.data || "").slice(0, 7) === luna) venit += f.net || 0;
+          });
+          S.zreports.forEach(function (z) {
+            if ((z.data || "").slice(0, 7) === luna) venit += z.net || 0;
+          });
+          facturi("in").forEach(function (f) {
+            if ((f.data || "").slice(0, 7) === luna) cheltuiala += f.net || 0;
+          });
+          S.consumptions.forEach(function (b) {
+            if ((b.data || "").slice(0, 7) === luna) cheltuiala += b.valoare || 0;
+          });
+          foaieCorp.querySelector('[name="venituri"]').value = (venit / 100).toFixed(2);
+          foaieCorp.querySelector('[name="cheltuieli"]').value = (cheltuiala / 100).toFixed(2);
+          foaieCorp.querySelector('[name="stoc"]').value = (valoareStoc() / 100).toFixed(2);
+          mesaj("Completat din facturile, rapoartele Z si bonurile inregistrate pe " + luna +
+                ". Verifica si corecteaza daca stii altfel.", "warn");
+        };
+        var sterge = document.getElementById("sterge-luna");
+        if (sterge) sterge.onclick = async function (ev) {
+          ev.preventDefault();
+          if (!window.confirm("Sterg luna " + val("luna") + "?")) return;
+          await sterge_("periods", val("luna"));
+          inchide();
+        };
+      },
+      salveaza: async function () {
+        var luna = val("luna");
+        if (!/^\d{4}-\d{2}$/.test(luna)) return mesaj("Alege o luna valida.");
+        await scrie("periods", luna, {
+          venituri: bani(val("venituri")), cheltuieli: bani(val("cheltuieli")),
+          stoc: bani(val("stoc")), obs: val("obs")
+        });
         inchide();
       }
     },
@@ -1149,6 +1395,147 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
     };
   }
 
+  // ------------------------------------------------------------ sfaturi de la Claude
+  // Modelul primeste un rezumat al cifrelor din aplicatie, nu baza intreaga: destul
+  // ca sa spuna ceva folositor, destul de scurt cat sa incapa intr-o intrebare.
+  function rezumatFirma() {
+    var m = setari();
+    var linii = [];
+    linii.push("Firma: " + (m.firma || "-") + (m.tva ? ", platitoare de TVA " + m.tva + "%"
+                                                     : ", NEPLATITOARE de TVA"));
+    linii.push("Data de azi: " + azi());
+
+    var categorii = categoriiCuTotal();
+    linii.push("\nSTOC PE CATEGORII (cost de achizitie, " + MONEDA + "):");
+    categorii.forEach(function (c) {
+      linii.push("- " + c.nume + ": " + c.articole + " articole, " +
+                 lei(c.bucati * 100, 0) + " buc, " + lei(c.valoare));
+    });
+    linii.push("Total stoc: " + lei(valoareStoc()) + " " + MONEDA);
+
+    var grele = S.products.filter(function (p) { return p.tip !== "serviciu"; })
+      .sort(function (a, b) { return (b.stoc * b.cost) - (a.stoc * a.cost); }).slice(0, 20);
+    linii.push("\nCELE MAI VALOROASE 20 DE POZITII:");
+    grele.forEach(function (p) {
+      var val = Math.round((p.stoc || 0) * (p.cost || 0));
+      var marja = p.pret > 0 && p.cost > 0
+        ? ", pret vanzare " + lei(p.pret) + " (adaos " +
+          Math.round(100 * (p.pret - p.cost) / p.cost) + "%)" : "";
+      linii.push("- [" + p.sku + "] " + p.nume + " | " + (p.categorie || "Altele") + " | " +
+                 lei((p.stoc || 0) * 100, 0) + " buc x " + lei(p.cost) + " = " + lei(val) + marja);
+    });
+
+    var mica = S.products.filter(function (p) {
+      return p.tip === "marfa" && p.pret > 0 && p.cost > 0 && (p.pret - p.cost) / p.cost < 0.35;
+    });
+    if (mica.length) {
+      linii.push("\nMARFA CU ADAOS SUB 35%:");
+      mica.forEach(function (p) {
+        linii.push("- [" + p.sku + "] " + p.nume + ": cost " + lei(p.cost) + ", pret " +
+                   lei(p.pret) + ", adaos " + Math.round(100 * (p.pret - p.cost) / p.cost) + "%");
+      });
+    }
+
+    var luni = luniOrdonate();
+    if (luni.length) {
+      linii.push("\nISTORIC PE LUNI (" + MONEDA + "):");
+      luni.forEach(function (l) {
+        linii.push("- " + l.id + ": venituri " + lei(l.venituri || 0) + ", cheltuieli " +
+                   lei(l.cheltuieli || 0) + ", rezultat " +
+                   lei((l.venituri || 0) - (l.cheltuieli || 0)) +
+                   ", stoc final " + lei(l.stoc || 0) + (l.obs ? " (" + l.obs + ")" : ""));
+      });
+    } else {
+      linii.push("\nISTORIC PE LUNI: nu e inregistrata nicio luna.");
+    }
+
+    if (S.consumptions.length) {
+      var peCentru = {};
+      S.consumptions.forEach(function (b) {
+        peCentru[b.centru || "(nespecificat)"] =
+          (peCentru[b.centru || "(nespecificat)"] || 0) + (b.valoare || 0);
+      });
+      linii.push("\nCONSUMURI (piese date in consum, " + S.consumptions.length + " bonuri):");
+      Object.keys(peCentru).forEach(function (k) {
+        linii.push("- " + k + ": " + lei(peCentru[k]));
+      });
+    }
+
+    var out = facturi("out"), inn = facturi("in");
+    linii.push("\nFACTURI: " + out.length + " emise, " + inn.length + " primite, " +
+               S.zreports.length + " rapoarte Z, " + S.clients.length + " clienti.");
+    var deIncasat = out.reduce(function (t, f) {
+      return t + Math.max(0, (f.total || 0) - (f.incasat || 0));
+    }, 0);
+    var dePlatit = inn.reduce(function (t, f) {
+      return t + Math.max(0, (f.total || 0) - (f.platit || 0));
+    }, 0);
+    linii.push("De incasat de la clienti: " + lei(deIncasat) + ". De platit furnizorilor: " +
+               lei(dePlatit) + ".");
+    return linii.join("\n");
+  }
+
+  var INSTRUCTIUNI =
+    "Esti consultantul de afaceri al unui service de telefoane si electronice din Iasi, " +
+    "care vinde si accesorii. Vorbesti romaneste, direct, ca un om care a mai vazut " +
+    "afaceri de marimea asta.\n\n" +
+    "Reguli:\n" +
+    "- Foloseste NUMAI cifrele din datele de mai jos. Nu inventa nimic si nu presupune " +
+    "vanzari daca nu ti se dau.\n" +
+    "- Cand recomanzi ceva, spune la ce articol sau categorie anume te referi, cu codul lui.\n" +
+    "- Da cel mult 5 recomandari, in ordinea banilor pe care ii aduc sau ii elibereaza.\n" +
+    "- Pentru fiecare, spune scurt DE CE, din cifre.\n" +
+    "- La final, o sectiune scurta: ce date iti lipsesc ca sa poti spune mai mult.\n" +
+    "- Fara introduceri politicoase si fara incheieri. Intra direct in subiect.\n" +
+    "- Foloseste ## pentru titluri de sectiune si ** pentru accente.";
+
+  function textAI(brut) {
+    // Escapam intai, apoi punem inapoi doar cele doua marcaje pe care le cerem modelului.
+    return esc(brut)
+      .replace(/^##\s*(.+)$/gm, "<h4>$1</h4>")
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  }
+
+  var intrebareInCurs = false;
+  async function intreabaClaude(intrebare) {
+    if (intrebareInCurs) return;
+    var box = document.getElementById("raspuns-ai");
+    var butoane = document.querySelectorAll("#view-sfaturi .btn");
+    intrebareInCurs = true;
+    butoane.forEach(function (b) { b.disabled = true; });
+    box.innerHTML = '<p class="ai-gandeste">Se uita peste cifre...</p>';
+
+    try {
+      var sample = await claude.use("sample");
+      if (!sample) {
+        box.innerHTML = '<p class="empty">Sfaturile nu sunt disponibile in aceasta ' +
+          "vizualizare. Deschide pagina din contul tau Claude.</p>";
+        return;
+      }
+      await sample(
+        INSTRUCTIUNI + "\n\nINTREBAREA: " + intrebare + "\n\nDATELE FIRMEI:\n" + rezumatFirma(),
+        {
+          modelTier: "complex",
+          onText: function (ev) { box.innerHTML = '<div class="ai">' + textAI(ev.text) + "</div>"; }
+        }
+      );
+    } catch (e) {
+      var cod = e && e.code;
+      if (cod === "not_granted") {
+        box.innerHTML = '<p class="empty">Nu am voie sa intreb Claude din aceasta pagina.</p>';
+      } else if (cod === "rate_limited") {
+        box.innerHTML = '<p class="empty">Prea multe intrebari intr-un timp scurt. ' +
+          "Incearca peste un minut.</p>";
+      } else {
+        box.innerHTML = '<p class="empty">Nu am putut cere raspunsul: ' +
+          esc((e && e.message) || e) + "</p>";
+      }
+    } finally {
+      intrebareInCurs = false;
+      butoane.forEach(function (b) { b.disabled = false; });
+    }
+  }
+
   // ---------------------------------------------------------------- evenimente
   document.querySelectorAll("nav button").forEach(function (b) {
     b.addEventListener("click", function () {
@@ -1189,10 +1576,38 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
       randeazaLinii();
       return;
     }
+    var chip = ev.target.closest("[data-categorie]");
+    if (chip) {
+      filtruCategorie = chip.dataset.categorie || null;
+      randeazaStoc();
+      return;
+    }
+    if (ev.target.id === "cere-analiza") {
+      intreabaClaude("Uita-te peste toata firma si spune-mi ce ar trebui sa fac ca sa " +
+                     "cresc. Ce merge bine, ce ma trage in jos, ce as face maine dimineata.");
+      return;
+    }
+    if (ev.target.id === "cere-stoc-mort") {
+      intreabaClaude("Ce stoc sta degeaba si imi tine banii blocati? Spune-mi ce as putea " +
+                     "lichida, la ce pret, si cati bani as elibera.");
+      return;
+    }
+    if (ev.target.id === "cere-preturi") {
+      intreabaClaude("Unde am adaos prea mic sau preturi puse gresit? La ce articole as " +
+                     "putea creste pretul fara sa pierd clienti?");
+      return;
+    }
+    if (ev.target.id === "cere-raspuns") {
+      var q = document.getElementById("intrebare").value.trim();
+      if (q) intreabaClaude(q);
+      return;
+    }
     var rand = ev.target.closest("[data-click]");
     if (rand) {
       var parti = rand.dataset.click.split(":");
-      if (parti[0] === "ajusteaza") {
+      if (parti[0] === "luna") {
+        deschide("luna", get("periods", parti[1]));
+      } else if (parti[0] === "ajusteaza") {
         var produs = get("products", parti[1]);
         if (produs) deschideAjustare(produs);
       } else {
@@ -1252,7 +1667,7 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
     for (var i = 0; i < COLECTII.length; i++) {
       var colectie = COLECTII[i];
       var docs = S[colectie].slice();
-      for (var j = 0; j < docs.length; j++) await sterge(colectie, docs[j].id);
+      for (var j = 0; j < docs.length; j++) await sterge_(colectie, docs[j].id);
     }
     await scrie("meta", "state", {
       demo: false, firma: pastrate.demo ? "Firma mea" : pastrate.firma || "Firma mea",
