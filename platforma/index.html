@@ -173,6 +173,7 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
       <button role="tab" data-view="achizitii" aria-selected="false">Achizitii</button>
       <button role="tab" data-view="stoc" aria-selected="false">Stoc</button>
       <button role="tab" data-view="clienti" aria-selected="false">Clienti</button>
+      <button role="tab" data-view="setari" aria-selected="false">Setari</button>
     </nav>
   </div>
 
@@ -224,6 +225,11 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
     <div class="tiles" id="tiles-stoc"></div>
     <h3>Articole</h3>
     <div class="panel"><div class="scroll"><table id="tab-stoc"></table></div></div>
+    <h3>Corectii de stoc</h3>
+    <div class="panel"><div class="scroll"><table id="tab-ajustari"></table></div>
+      <p class="note">Apasa pe un articol din tabelul de mai sus ca sa-i corectezi stocul dupa
+        inventar. Fiecare corectie ramane aici, cu motivul ei.</p></div>
+
     <h3>Consumuri pe centru de cost</h3>
     <div class="panel"><div id="chart-consum"></div>
       <div class="scroll"><table id="tab-consum"></table></div></div>
@@ -235,6 +241,37 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
       <button class="btn btn-primary" data-open="client">Client nou</button>
     </div>
     <div class="panel"><div class="scroll"><table id="tab-clienti"></table></div></div>
+  </section>
+
+  <section class="view" id="view-setari" hidden>
+    <h2>Datele firmei</h2>
+    <div class="panel">
+      <div id="form-setari"></div>
+    </div>
+
+    <h3>Unde se introduce fiecare lucru</h3>
+    <div class="panel">
+      <table>
+        <tbody>
+          <tr><td>Datele firmei, cota de TVA, seria facturilor</td><td>aici, mai sus</td></tr>
+          <tr><td>Articole si stocul lor de pornire</td><td>Stoc &rarr; Articol nou</td></tr>
+          <tr><td>Corectie de stoc dupa inventar</td><td>Stoc &rarr; apasa pe randul articolului</td></tr>
+          <tr><td>Marfa intrata de la furnizor</td><td>Achizitii &rarr; Factura primita</td></tr>
+          <tr><td>Vanzare cu factura</td><td>Vanzari &rarr; Factura emisa</td></tr>
+          <tr><td>Vanzare pe bon fiscal</td><td>Vanzari &rarr; Raport Z</td></tr>
+          <tr><td>Consumabile folosite in firma</td><td>Stoc &rarr; Bon de consum</td></tr>
+          <tr><td>Incasarea sau plata unei facturi</td><td>apasa pe randul facturii din lista</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Date demonstrative</h3>
+    <div class="panel">
+      <p class="note" id="stare-demo"></p>
+      <div class="actions">
+        <button class="btn btn-danger" id="sterge-tot">Sterge toate datele si incepe gol</button>
+      </div>
+    </div>
   </section>
 </div>
 
@@ -257,10 +294,12 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
   var TVA = 21;                       // cota standard, RO din august 2025
   var MONEDA = "RON";
   var LUNI = ["ian","feb","mar","apr","mai","iun","iul","aug","sep","oct","noi","dec"];
-  var COLECTII = ["products", "clients", "invoices", "zreports", "consumptions", "meta"];
+  var COLECTII = ["products", "clients", "invoices", "zreports", "consumptions",
+                "adjustments", "meta"];
 
   var db = null;
-  var S = { products: [], clients: [], invoices: [], zreports: [], consumptions: [], meta: [] };
+  var S = { products: [], clients: [], invoices: [], zreports: [], consumptions: [],
+          adjustments: [], meta: [] };
   var vizibil = "acasa";
 
   // ------------------------------------------------------------------- bani
@@ -319,6 +358,12 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
     var m = get("meta", "state");
     return !!(m && m.demo);
   }
+  function setari() { return get("meta", "state") || {}; }
+  function cotaStandard() {
+    var c = setari().tva;
+    return c === undefined || c === null || c === "" ? TVA : Number(c);
+  }
+  function serieFacturi() { return setari().serie || "FACT"; }
 
   async function scrie(colectie, docId, date) {
     if (!db) throw new Error("Nu am legatura cu baza de date.");
@@ -582,10 +627,20 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
           var val = p.tip === "serviciu" ? 0 : Math.round((p.stoc || 0) * (p.cost || 0));
           var stoc = p.tip === "serviciu" ? "-"
             : lei((p.stoc || 0) * 100, 0) + " " + esc(p.um || "buc");
-          return { celule: [esc(p.sku), esc(p.nume),
+          return { click: p.tip === "serviciu" ? null : "ajusteaza:" + p.id,
+                   celule: [esc(p.sku), esc(p.nume),
                             '<span class="pill pill-mut">' + esc(p.tip) + "</span>",
                             stoc, lei(p.cost || 0), p.tip === "serviciu" ? "-" : lei(val)] };
         }), 3);
+
+    document.getElementById("tab-ajustari").innerHTML = tabel(
+      ["Data", "Articol", "Motiv", "De la", "La"],
+      S.adjustments.slice().sort(function (a, b) {
+        return (b.data || "").localeCompare(a.data || "");
+      }).slice(0, 12).map(function (a) {
+        return { celule: ['<span class="nw">' + esc(a.data) + "</span>", esc(a.sku),
+                          esc(a.motiv || ""), String(a.vechi), String(a.nou)] };
+      }), 3);
 
     var peCentru = {};
     var peArticol = {};
@@ -624,7 +679,43 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
         }), 2);
   }
 
+  function randeazaSetari() {
+    var activ = document.activeElement;
+    if (activ && activ.name && activ.name.indexOf("s-") === 0) return;
+    var m = setari();
+    document.getElementById("form-setari").innerHTML =
+      '<div id="setari-msg" hidden></div>' +
+      '<label class="field"><span>Denumirea firmei</span><input name="s-firma" value="' +
+        esc(m.firma || "") + '" placeholder="SC Exemplu SRL"></label>' +
+      '<div class="grid2">' +
+        '<label class="field"><span>CUI</span><input name="s-cui" value="' +
+          esc(m.cui || "") + '"></label>' +
+        '<label class="field"><span>Nr. Registrul Comertului</span><input name="s-reg" value="' +
+          esc(m.reg || "") + '"></label>' +
+      "</div>" +
+      '<label class="field"><span>Adresa</span><input name="s-adresa" value="' +
+        esc(m.adresa || "") + '"></label>' +
+      '<div class="grid2">' +
+        '<label class="field"><span>Telefon</span><input name="s-telefon" value="' +
+          esc(m.telefon || "") + '"></label>' +
+        '<label class="field"><span>Email</span><input name="s-email" value="' +
+          esc(m.email || "") + '"></label>' +
+      "</div>" +
+      '<div class="grid2">' +
+        '<label class="field"><span>Cota de TVA implicita %</span><input name="s-tva" ' +
+          'type="number" step="1" value="' + esc(m.tva === undefined ? TVA : m.tva) + '"></label>' +
+        '<label class="field"><span>Seria facturilor</span><input name="s-serie" value="' +
+          esc(m.serie || "FACT") + '"></label>' +
+      "</div>" +
+      '<div class="actions"><button class="btn btn-primary" id="salveaza-setari">Salveaza</button></div>';
+
+    document.getElementById("stare-demo").textContent = esteDemo()
+      ? "Baza contine datele demonstrative cu care a pornit aplicatia."
+      : "Baza contine doar datele introduse de tine.";
+  }
+
   function randeaza() {
+    randeazaSetari();
     randeazaAcasa();
     randeazaVanzari();
     randeazaAchizitii();
@@ -706,7 +797,7 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
           '<div class="grid2">' + alege("sku", "Articol", optiuniProduse(false)) +
           camp("cant", "Cantitate", "number", "1", 'step="any" min="0"') + "</div>" +
           '<div class="grid2">' + camp("pret", "Pret unitar fara TVA", "number", "", 'step="any"') +
-          camp("cota", "Cota TVA %", "number", TVA, 'step="1"') + "</div>" +
+          camp("cota", "Cota TVA %", "number", cotaStandard(), 'step="1"') + "</div>" +
           '<button class="btn" id="adauga-linie">Adauga pozitia</button></div>' +
           '<div id="total-linii"></div>' +
           '<div class="actions"><button class="btn btn-primary" id="salveaza">Emite factura</button></div>';
@@ -717,7 +808,8 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
           var p = produsDupaSku(sel.value);
           if (!p) return;
           foaieCorp.querySelector('[name="pret"]').value = ((p.pret || 0) / 100).toFixed(2);
-          foaieCorp.querySelector('[name="cota"]').value = p.tva === undefined ? TVA : p.tva;
+          foaieCorp.querySelector('[name="cota"]').value =
+            p.tva === undefined ? cotaStandard() : p.tva;
         }
         if (sel) { sel.addEventListener("change", umple); umple(); }
         var cl = foaieCorp.querySelector('[name="client"]');
@@ -762,7 +854,7 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
             actualizari.push({ id: p.id, stoc: Math.round(((p.stoc || 0) - l.cant) * 1e6) / 1e6 });
           }
         });
-        var numar = "FACT-" + (facturi("out").length + 1);
+        var numar = serieFacturi() + "-" + (facturi("out").length + 1);
         await scrie("invoices", id("f"), {
           tip: "out", numar: numar, partener: client, data: val("data") || azi(),
           scadenta: val("scadenta") || val("data") || azi(), linii: linii,
@@ -787,7 +879,7 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
           '<div class="grid2">' + alege("sku", "Articol", optiuniProduse(true)) +
           camp("cant", "Cantitate", "number", "1", 'step="any" min="0"') + "</div>" +
           '<div class="grid2">' + camp("pret", "Cost unitar fara TVA", "number", "", 'step="any"') +
-          camp("cota", "Cota TVA %", "number", TVA, 'step="1"') + "</div>" +
+          camp("cota", "Cota TVA %", "number", cotaStandard(), 'step="1"') + "</div>" +
           '<button class="btn" id="adauga-linie">Adauga pozitia</button></div>' +
           '<div id="total-linii"></div>' +
           '<div class="actions"><button class="btn btn-primary" id="salveaza">Inregistreaza</button></div>';
@@ -846,7 +938,7 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
           '<div class="grid2">' + camp("data", "Data", "date", azi()) +
           camp("numar", "Numar Z", "text", String(S.zreports.length + 1)) + "</div>" +
           camp("total", "Total incasat, cu TVA", "number", "", 'step="any" inputmode="decimal"') +
-          '<div class="grid2">' + camp("cota", "Cota TVA %", "number", TVA, 'step="1"') +
+          '<div class="grid2">' + camp("cota", "Cota TVA %", "number", cotaStandard(), 'step="1"') +
           camp("numerar", "Din care numerar", "number", "", 'step="any"') + "</div>" +
           camp("card", "Din care card", "number", "", 'step="any"') +
           '<p class="note">Raportul Z inregistreaza incasarea si TVA-ul zilei. Nu scade stocul, ' +
@@ -878,8 +970,13 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
                                { v: "consumabil", t: "Consumabil (se foloseste in firma)" },
                                { v: "serviciu", t: "Serviciu (fara stoc)" }]) +
           '<div class="grid2">' + camp("pret", "Pret vanzare fara TVA", "number", "0", 'step="any"') +
-          camp("tva", "Cota TVA %", "number", TVA, 'step="1"') + "</div>" +
+          camp("tva", "Cota TVA %", "number", cotaStandard(), 'step="1"') + "</div>" +
           camp("prag", "Prag de reaprovizionare", "number", "0", 'step="any"') +
+          "<h3>Stoc de pornire</h3>" +
+          '<div class="grid2">' + camp("stoc", "Cantitate pe stoc acum", "number", "0", 'step="any"') +
+          camp("cost", "Cost unitar fara TVA", "number", "0", 'step="any"') + "</div>" +
+          '<p class="note">Lasa-le pe zero daca articolul intra abia acum, cu o factura de la ' +
+          "furnizor. Completeaza-le cand treci in aplicatie un stoc pe care il ai deja.</p>" +
           '<div class="actions"><button class="btn btn-primary" id="salveaza">Salveaza</button></div>';
       },
       salveaza: async function () {
@@ -887,11 +984,23 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
         if (!sku) return mesaj("Codul articolului e obligatoriu.");
         if (produsDupaSku(sku)) return mesaj("Exista deja un articol cu codul " + sku + ".");
         if (!val("nume")) return mesaj("Scrie denumirea articolului.");
-        await scrie("products", id("p"), {
-          sku: sku, nume: val("nume"), um: val("um") || "buc", tip: val("tip") || "marfa",
-          pret: bani(val("pret")), tva: Number(val("tva")) || 0, stoc: 0, cost: 0,
+        var tip = val("tip") || "marfa";
+        var stoc = tip === "serviciu" ? 0 : Number(val("stoc").replace(",", ".")) || 0;
+        var cost = tip === "serviciu" ? 0 : bani(val("cost"));
+        if (stoc < 0) return mesaj("Stocul de pornire nu poate fi negativ.");
+        var docId = id("p");
+        await scrie("products", docId, {
+          sku: sku, nume: val("nume"), um: val("um") || "buc", tip: tip,
+          pret: bani(val("pret")), tva: Number(val("tva")) || 0, stoc: stoc, cost: cost,
           prag: Number(val("prag").replace(",", ".")) || 0
         });
+        if (stoc > 0) {
+          // Stocul preluat la pornire e o intrare ca oricare alta: se vede in istoric.
+          await scrie("adjustments", id("a"), {
+            data: azi(), sku: sku, vechi: 0, nou: stoc, motiv: "Stoc preluat la pornire",
+            valoare: Math.round(stoc * cost)
+          });
+        }
         inchide();
       }
     },
@@ -979,6 +1088,35 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
     if (first && window.innerWidth > 640) first.focus();
   }
 
+  function deschideAjustare(produs) {
+    linii = [];
+    foaieTitlu.textContent = "Corectie de stoc - " + produs.sku;
+    foaieCorp.innerHTML = '<div id="form-msg" hidden></div>' +
+      '<p class="note">' + esc(produs.nume) + " - stoc scriptic " + produs.stoc + " " +
+      esc(produs.um || "buc") + ", la cost mediu " + lei(produs.cost || 0) + " " + MONEDA + "</p>" +
+      camp("real", "Stoc real, la numaratoare", "number", produs.stoc, 'step="any" min="0"') +
+      camp("motiv", "Motiv", "text", "", 'placeholder="inventar, sparte, eroare de operare"') +
+      camp("data", "Data", "date", azi()) +
+      '<div class="actions"><button class="btn btn-primary" id="salveaza-ajustare">Salveaza</button>' +
+      '<button class="btn btn-ghost" id="renunta">Renunta</button></div>';
+    foaie.hidden = false;
+    document.getElementById("renunta").onclick = inchide;
+    document.getElementById("salveaza-ajustare").onclick = async function () {
+      var real = Number(val("real").replace(",", "."));
+      if (!isFinite(real) || real < 0) return mesaj("Scrie o cantitate valida.");
+      if (real === produs.stoc) return mesaj("Stocul real e acelasi; nu e nimic de corectat.");
+      if (!val("motiv")) return mesaj("Scrie motivul corectiei.");
+      try {
+        await db.doc("products/" + produs.id).update({ stoc: real });
+        await scrie("adjustments", id("a"), {
+          data: val("data") || azi(), sku: produs.sku, vechi: produs.stoc, nou: real,
+          motiv: val("motiv"), valoare: Math.round((real - produs.stoc) * (produs.cost || 0))
+        });
+        inchide();
+      } catch (e) { mesaj("Nu am putut salva: " + (e && e.message ? e.message : e)); }
+    };
+  }
+
   function deschidePlata(factura, incasare) {
     var restant = (factura.total || 0) - (incasare ? factura.incasat || 0 : factura.platit || 0);
     linii = [];
@@ -1048,11 +1186,21 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
     var rand = ev.target.closest("[data-click]");
     if (rand) {
       var parti = rand.dataset.click.split(":");
-      var factura = get("invoices", parti[1]);
-      if (factura) deschidePlata(factura, parti[0] === "incaseaza");
+      if (parti[0] === "ajusteaza") {
+        var produs = get("products", parti[1]);
+        if (produs) deschideAjustare(produs);
+      } else {
+        var factura = get("invoices", parti[1]);
+        if (factura) deschidePlata(factura, parti[0] === "incaseaza");
+      }
       return;
     }
-    if (ev.target.id === "sterge-demo") { stergeDemo(); return; }
+    if (ev.target.id === "sterge-demo" || ev.target.id === "sterge-tot") { golesteTot(); return; }
+    if (ev.target.id === "salveaza-setari") {
+      ev.preventDefault();
+      salveazaSetari(ev.target);
+      return;
+    }
   });
 
   document.getElementById("sheet-close").addEventListener("click", inchide);
@@ -1061,15 +1209,53 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
     if (ev.key === "Escape" && !foaie.hidden) inchide();
   });
 
-  async function stergeDemo() {
+  function valSetare(nume) {
+    var el = document.querySelector('[name="s-' + nume + '"]');
+    return el ? el.value.trim() : "";
+  }
+
+  async function salveazaSetari(buton) {
+    var box = document.getElementById("setari-msg");
+    function spune(text, ton) {
+      box.className = "msg msg-" + ton; box.textContent = text; box.hidden = false;
+    }
+    if (!valSetare("firma")) return spune("Scrie denumirea firmei.", "bad");
+    var cota = Number(valSetare("tva"));
+    if (!isFinite(cota) || cota < 0 || cota > 100) {
+      return spune("Cota de TVA trebuie sa fie intre 0 si 100.", "bad");
+    }
+    buton.disabled = true;
+    try {
+      var acum = setari();
+      await scrie("meta", "state", {
+        demo: !!acum.demo, firma: valSetare("firma"), cui: valSetare("cui"),
+        reg: valSetare("reg"), adresa: valSetare("adresa"), telefon: valSetare("telefon"),
+        email: valSetare("email"), tva: cota, serie: valSetare("serie") || "FACT"
+      });
+      spune("Datele firmei au fost salvate.", "good");
+    } catch (e) {
+      spune("Nu am putut salva: " + (e && e.message ? e.message : e), "bad");
+    }
+    buton.disabled = false;
+  }
+
+  async function golesteTot() {
     if (!db) return;
-    if (!window.confirm("Sterg toate datele demonstrative? Operatia nu se poate anula.")) return;
+    if (!window.confirm("Sterg toate datele din aplicatie? Operatia nu se poate anula.")) return;
+    var pastrate = setari();
     for (var i = 0; i < COLECTII.length; i++) {
       var colectie = COLECTII[i];
       var docs = S[colectie].slice();
       for (var j = 0; j < docs.length; j++) await sterge(colectie, docs[j].id);
     }
-    await scrie("meta", "state", { demo: false, firma: "Firma mea" });
+    await scrie("meta", "state", {
+      demo: false, firma: pastrate.demo ? "Firma mea" : pastrate.firma || "Firma mea",
+      cui: pastrate.demo ? "" : pastrate.cui || "", reg: pastrate.demo ? "" : pastrate.reg || "",
+      adresa: pastrate.demo ? "" : pastrate.adresa || "",
+      telefon: pastrate.demo ? "" : pastrate.telefon || "",
+      email: pastrate.demo ? "" : pastrate.email || "",
+      tva: pastrate.tva === undefined ? TVA : pastrate.tva, serie: pastrate.serie || "FACT"
+    });
   }
 
   // --------------------------------------------------------------------- boot

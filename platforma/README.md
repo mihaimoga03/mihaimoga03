@@ -4,8 +4,14 @@ Pagina din `index.html` este publicată ca Artifact pe claude.ai și rulează cu
 capacitatea `db` — o bază de date pe server, partajată între dispozitive. Se
 deschide din contul Claude al proprietarului, de pe telefon sau de pe calculator.
 
-Ce face: facturi emise și primite, rapoarte Z, bonuri de consum, nomenclator de
-articole cu cost mediu ponderat, clienți, grafice de vânzări și scadențe.
+Ce face: datele firmei, facturi emise și primite, rapoarte Z, bonuri de consum,
+nomenclator de articole cu cost mediu ponderat, corecții de stoc după inventar,
+clienți, grafice de vânzări și scadențe.
+
+Fila **Setări** ține datele firmei (denumire, CUI, adresă, cota implicită de TVA,
+seria facturilor) în `meta/state` și conține un tabel cu locul fiecărei operațiuni.
+Un articol nou poate porni direct cu stoc și cost — corecțiile ulterioare se fac
+apăsând pe rândul lui în tabelul de stoc și rămân în `adjustments`, cu motiv.
 
 ## Cum se actualizează
 
@@ -22,5 +28,5 @@ ponderat, TVA la 21%), dar sunt implementări separate — o modificare într-un
 nu se propagă singură în cealaltă.
 
 Colecțiile din baza artefactului: `products`, `clients`, `invoices` (cu `tip`
-`out` sau `in`), `zreports`, `consumptions`, `meta`. Sumele sunt numere întregi
+`out` sau `in`), `zreports`, `consumptions`, `adjustments`, `meta`. Sumele sunt numere întregi
 de bani, ca în engine-ul Python.
