@@ -116,6 +116,27 @@ def cmd_seed(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_raport(args: argparse.Namespace) -> int:
+    from .report import write
+
+    path = write(args.output, args.an, args.nota)
+    print(f"Raport scris in {path.resolve()}")
+    return 0
+
+
+def cmd_import(args: argparse.Namespace) -> int:
+    from .importer import IMPORTERS, ImportProblem
+
+    importer = IMPORTERS[args.tip]
+    try:
+        summary = importer(args.fisier)
+    except ImportProblem as exc:
+        print(f"Import esuat: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    return 1 if summary["esuate"] else 0
+
+
 def cmd_sql(args: argparse.Namespace) -> int:
     """Interogare directa, doar pentru citire - utila la depanare."""
     query = " ".join(args.query)
@@ -142,6 +163,17 @@ def build_parser() -> argparse.ArgumentParser:
     seed = sub.add_parser("seed", help="Populeaza baza de date cu date demonstrative.")
     seed.add_argument("--reset", action="store_true", help="Sterge intai baza de date existenta.")
     seed.set_defaults(func=cmd_seed)
+
+    rap = sub.add_parser("raport", help="Genereaza raportul HTML al anului.")
+    rap.add_argument("--output", default="raport.html", help="Fisierul de iesire.")
+    rap.add_argument("--an", type=int, default=None, help="Anul raportat; implicit anul curent.")
+    rap.add_argument("--nota", default=None, help="Banda de avertizare afisata sub antet.")
+    rap.set_defaults(func=cmd_raport)
+
+    imp = sub.add_parser("import", help="Importa date reale dintr-un fisier CSV.")
+    imp.add_argument("tip", choices=["clienti", "produse", "stoc", "vanzari", "consumuri"])
+    imp.add_argument("fisier")
+    imp.set_defaults(func=cmd_import)
 
     sql = sub.add_parser("sql", help="Ruleaza un SELECT direct pe baza de date.")
     sql.add_argument("query", nargs="+")

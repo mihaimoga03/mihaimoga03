@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS products (
     stock_qty         REAL NOT NULL DEFAULT 0,
     avg_cost_bani     INTEGER NOT NULL DEFAULT 0,
     reorder_level     REAL NOT NULL DEFAULT 0,
-    is_service        INTEGER NOT NULL DEFAULT 0,
+    kind              TEXT NOT NULL DEFAULT 'marfa'
+                          CHECK (kind IN ('marfa','consumabil','serviciu')),
     active            INTEGER NOT NULL DEFAULT 1,
     created_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -52,7 +53,8 @@ CREATE TABLE IF NOT EXISTS stock_moves (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
     product_id       INTEGER NOT NULL REFERENCES products(id),
     date             TEXT NOT NULL,
-    kind             TEXT NOT NULL CHECK (kind IN ('receptie','iesire','ajustare','stornare')),
+    kind             TEXT NOT NULL
+                         CHECK (kind IN ('receptie','iesire','consum','ajustare','stornare')),
     qty              REAL NOT NULL,
     unit_cost_bani   INTEGER NOT NULL,
     value_bani       INTEGER NOT NULL,
@@ -61,6 +63,25 @@ CREATE TABLE IF NOT EXISTS stock_moves (
     ref_id           INTEGER,
     note             TEXT,
     created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS consumptions (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    number       INTEGER,
+    date         TEXT NOT NULL,
+    cost_center  TEXT,
+    reason       TEXT,
+    value_bani   INTEGER NOT NULL DEFAULT 0,
+    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS consumption_lines (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    consumption_id  INTEGER NOT NULL REFERENCES consumptions(id) ON DELETE CASCADE,
+    product_id      INTEGER NOT NULL REFERENCES products(id),
+    qty             REAL NOT NULL,
+    unit_cost_bani  INTEGER NOT NULL,
+    value_bani      INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS purchases (
@@ -143,6 +164,8 @@ CREATE INDEX IF NOT EXISTS idx_lines_invoice ON invoice_lines(invoice_id);
 CREATE INDEX IF NOT EXISTS idx_journal_date  ON journal(date);
 CREATE INDEX IF NOT EXISTS idx_jlines_acct   ON journal_lines(account);
 CREATE INDEX IF NOT EXISTS idx_inv_client    ON invoices(client_id, status);
+CREATE INDEX IF NOT EXISTS idx_cons_date     ON consumptions(date);
+CREATE INDEX IF NOT EXISTS idx_clines_cons   ON consumption_lines(consumption_id);
 """
 
 _local = threading.local()

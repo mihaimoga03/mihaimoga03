@@ -12,6 +12,7 @@ import sqlite3
 # Conturile folosite de aplicatie, cu denumirile din planul de conturi.
 ACCOUNTS: dict[str, str] = {
     "1012": "Capital subscris varsat",
+    "302": "Materiale consumabile",
     "371": "Marfuri",
     "401": "Furnizori",
     "4111": "Clienti",
@@ -20,7 +21,7 @@ ACCOUNTS: dict[str, str] = {
     "5121": "Conturi la banci in lei",
     "5311": "Casa in lei",
     "607": "Cheltuieli privind marfurile",
-    "6021": "Cheltuieli cu materialele consumabile",
+    "602": "Cheltuieli cu materialele consumabile",
     "605": "Cheltuieli cu energia si apa",
     "612": "Cheltuieli cu redeventele si chiriile",
     "624": "Cheltuieli cu transportul",
@@ -39,6 +40,29 @@ ACCOUNT_ALIASES = {
     "banca": "5121",
     "numerar": "5311",
 }
+
+# Tipurile de articol si conturile lor. Marfa se cumpara ca sa fie vanduta,
+# consumabilul ca sa fie folosit in firma, serviciul nu tine stoc deloc.
+PRODUCT_KINDS = ("marfa", "consumabil", "serviciu")
+
+STOCK_ACCOUNT = {"marfa": "371", "consumabil": "302"}
+COST_ACCOUNT = {"marfa": "607", "consumabil": "602"}
+
+
+def stock_account(kind: str) -> str:
+    """Contul de stoc pentru un tip de articol."""
+    try:
+        return STOCK_ACCOUNT[kind]
+    except KeyError:
+        raise ValueError(f"Tipul '{kind}' nu tine stoc.") from None
+
+
+def cost_account(kind: str) -> str:
+    """Contul pe care se descarca valoarea iesita din stoc."""
+    try:
+        return COST_ACCOUNT[kind]
+    except KeyError:
+        raise ValueError(f"Tipul '{kind}' nu are cont de cost de stoc.") from None
 
 
 def account_name(code: str) -> str:

@@ -11,7 +11,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from anthropic import beta_tool
 
-from ..accounting import cash_account, post
+from ..accounting import PRODUCT_KINDS, cash_account, cost_account, post, stock_account
 from ..db import rows, transaction
 from ..money import ron_to_bani, vat_of
 from ._util import (
@@ -130,9 +130,9 @@ def adauga_produs(
     unit: str = "buc",
     vat_rate: int | None = None,
     reorder_level: float = 0,
-    serviciu: bool = False,
+    tip: str = "marfa",
 ) -> str:
-    """Adauga un produs sau un serviciu nou in nomenclator.
+    """Adauga un articol nou in nomenclator: marfa, consumabil sau serviciu.
 
     Args:
         sku: Codul intern al produsului; trebuie sa fie unic.
@@ -141,9 +141,12 @@ def adauga_produs(
         unit: Unitatea de masura (buc, kg, l, ora...).
         vat_rate: Cota de TVA in procente; implicit cota standard configurata.
         reorder_level: Pragul de stoc sub care produsul apare in raportul de reaprovizionare.
-        serviciu: True pentru servicii (manopera, transport); acestea nu tin stoc.
+        tip: 'marfa' (cumparata pentru revanzare, cont 371), 'consumabil' (folosita
+            in firma, cont 302) sau 'serviciu' (fara stoc).
     """
     rate = require_vat_rate(vat_rate)
+    if tip not in PRODUCT_KINDS:
+        raise ToolError(f"Tipul '{tip}' e necunoscut; alege dintre: {', '.join(PRODUCT_KINDS)}.")
     if not sku.strip() or not name.strip():
         raise ToolError("SKU-ul si denumirea sunt obligatorii.")
     if sale_price_ron < 0:
@@ -153,7 +156,7 @@ def adauga_produs(
             raise ToolError(f"Exista deja un produs cu SKU-ul '{sku}'.")
         cur = c.execute(
             "INSERT INTO products (sku, name, unit, vat_rate, sale_price_bani, reorder_level,"
-            " is_service) VALUES (?,?,?,?,?,?,?)",
+            " kind) VALUES (?,?,?,?,?,?,?)",
             (
                 sku.strip(),
                 name.strip(),
@@ -161,7 +164,7 @@ def adauga_produs(
                 rate,
                 ron_to_bani(sale_price_ron),
                 float(reorder_level),
-                1 if serviciu else 0,
+                tip,
             ),
         )
         pid = int(cur.lastrowid)
@@ -171,7 +174,7 @@ def adauga_produs(
             "product_id": pid,
             "sku": sku.strip(),
             "cota_tva": rate,
-            "tip": "serviciu" if serviciu else "marfa",
+            "tip": tip,
         }
     )
 
@@ -192,7 +195,7 @@ def cauta_produse(query: str | None = None, doar_stoc_redus: bool = False, limit
         sql += " AND (sku LIKE ? OR name LIKE ?)"
         args += [f"%{query}%"] * 2
     if doar_stoc_redus:
-        sql += " AND is_service = 0 AND stock_qty <= reorder_level"
+        sql += " AND kind != 'serviciu' AND stock_qty <= reorder_level"
     sql += " ORDER BY name LIMIT ?"
     args.append(max(1, min(int(limit), 200)))
 
@@ -202,7 +205,7 @@ def cauta_produse(query: str | None = None, doar_stoc_redus: bool = False, limit
             {
                 "sku": p["sku"],
                 "denumire": p["name"],
-                "tip": "serviciu" if p["is_service"] else "marfa",
+                "tip": p["kind"],
                 "um": p["unit"],
                 "stoc": p["stock_qty"],
                 "prag_reaprovizionare": p["reorder_level"],
@@ -251,7 +254,7 @@ def receptie_marfa(
 
     with transaction() as c:
         product = find_product(sku, c)
-        if product["is_service"]:
+        if product["kind"] == "serviciu":
             raise ToolError(f"'{product['sku']}' e un serviciu; serviciile nu au stoc de receptionat.")
         rate = product["vat_rate"] if vat_rate is None else require_vat_rate(vat_rate)
         supplier_id = _get_or_create_supplier(c, supplier, None)
@@ -271,7 +274,7 @@ def receptie_marfa(
             ref_type="receptie", ref_id=purchase_id, note=doc_no,
         )
 
-        lines = [("371", value, 0, f"Marfa {product['sku']}")]
+        lines = [(stock_account(product["kind"]), value, 0, f"{product['kind'].capitalize()} {product['sku']}")]
         if vat:
             lines.append(("4426", vat, 0, f"TVA {rate}%"))
         lines.append(("401", 0, total, f"Furnizor {supplier}"))
@@ -331,16 +334,17 @@ def ajusteaza_stoc(sku: str, qty_delta: float, motiv: str, date: str | None = No
 
     with transaction() as c:
         product = find_product(sku, c)
-        if product["is_service"]:
+        if product["kind"] == "serviciu":
             raise ToolError(f"'{product['sku']}' e un serviciu; nu are stoc de ajustat.")
         cost = product["avg_cost_bani"]
         value, new_qty = record_move(c, product, move_date, "ajustare", qty_delta, cost, note=motiv)
         amount = abs(value)
         if amount:
+            stoc = stock_account(product["kind"])
             if qty_delta < 0:
-                lines = [("6588", amount, 0, motiv), ("371", 0, amount, f"Minus {product['sku']}")]
+                lines = [("6588", amount, 0, motiv), (stoc, 0, amount, f"Minus {product['sku']}")]
             else:
-                lines = [("371", amount, 0, f"Plus {product['sku']}"), ("758", 0, amount, motiv)]
+                lines = [(stoc, amount, 0, f"Plus {product['sku']}"), ("758", 0, amount, motiv)]
             post(c, move_date, "ajustare_stoc", product["id"], f"Ajustare {product['sku']}: {motiv}", lines)
 
     return out(
@@ -386,7 +390,9 @@ def miscari_stoc(sku: str, limit: int = 20) -> str:
 def raport_stoc() -> str:
     """Situatia stocurilor: valoare totala, produse sub prag si produse fara miscare."""
     produse = rows(
-        conn().execute("SELECT * FROM products WHERE active = 1 AND is_service = 0 ORDER BY name")
+        conn().execute(
+            "SELECT * FROM products WHERE active = 1 AND kind != 'serviciu' ORDER BY kind, name"
+        )
     )
     total = 0
     sub_prag = []
@@ -445,6 +451,164 @@ def actualizeaza_pret(sku: str, sale_price_ron: float) -> str:
     )
 
 
+@beta_tool
+@safe
+def bon_consum(
+    sku: str,
+    qty: float,
+    centru_cost: str | None = None,
+    motiv: str | None = None,
+    date: str | None = None,
+    bon_id: int | None = None,
+) -> str:
+    """Da in consum un articol din stoc, pe baza unui bon de consum.
+
+    Scoate cantitatea din stoc la costul mediu curent si o trece pe cheltuiala
+    (602 = 302 pentru consumabile, 607 = 371 pentru marfa consumata intern).
+    Pentru un bon cu mai multe pozitii, apeleaza unealta o data pentru prima
+    pozitie, apoi din nou cu `bon_id` intors de primul apel.
+
+    Args:
+        sku: Codul articolului consumat.
+        qty: Cantitatea consumata; trebuie sa fie pozitiva.
+        centru_cost: Unde s-a consumat (santier, atelier, birou, masina).
+        motiv: Explicatia consumului.
+        date: Data bonului (YYYY-MM-DD); implicit ziua curenta.
+        bon_id: Id-ul unui bon deschis, ca sa adaugi o pozitie pe acelasi bon.
+    """
+    if qty <= 0:
+        raise ToolError("Cantitatea consumata trebuie sa fie pozitiva.")
+    when = parse_date(date)
+
+    with transaction() as c:
+        product = find_product(sku, c)
+        if product["kind"] == "serviciu":
+            raise ToolError(f"'{product['sku']}' e un serviciu; nu se da in consum.")
+        if product["stock_qty"] <= 0:
+            raise ToolError(f"'{product['sku']}' nu are stoc; nu ai ce da in consum.")
+
+        if bon_id is None:
+            number = int(
+                c.execute("SELECT COALESCE(MAX(number), 0) AS n FROM consumptions").fetchone()["n"]
+            ) + 1
+            cur = c.execute(
+                "INSERT INTO consumptions (number, date, cost_center, reason) VALUES (?,?,?,?)",
+                (number, when, centru_cost, motiv),
+            )
+            bon_id = int(cur.lastrowid)
+        else:
+            bon = c.execute("SELECT * FROM consumptions WHERE id = ?", (int(bon_id),)).fetchone()
+            if not bon:
+                raise ToolError(f"Nu exista bonul de consum cu id-ul {bon_id}.")
+            when, number = bon["date"], bon["number"]
+
+        unit_cost = product["avg_cost_bani"]
+        value, new_qty = record_move(
+            c, product, when, "consum", -float(qty), unit_cost,
+            ref_type="bon_consum", ref_id=bon_id, note=centru_cost or motiv,
+        )
+        amount = -value
+        c.execute(
+            "INSERT INTO consumption_lines (consumption_id, product_id, qty, unit_cost_bani,"
+            " value_bani) VALUES (?,?,?,?,?)",
+            (bon_id, product["id"], float(qty), unit_cost, amount),
+        )
+        c.execute(
+            "UPDATE consumptions SET value_bani = value_bani + ? WHERE id = ?", (amount, bon_id)
+        )
+        if amount:
+            explicatie = motiv or centru_cost or "Consum intern"
+            post(
+                c,
+                when,
+                "bon_consum",
+                bon_id,
+                f"Bon de consum {number}: {product['sku']}",
+                [
+                    (cost_account(product["kind"]), amount, 0, explicatie),
+                    (stock_account(product["kind"]), 0, amount, f"Iesire {product['sku']}"),
+                ],
+            )
+
+    return out(
+        {
+            "ok": True,
+            "bon_id": bon_id,
+            "numar_bon": number,
+            "data": when,
+            "sku": product["sku"],
+            "cantitate": qty,
+            "valoare_ron": ron(amount),
+            "stoc_ramas": new_qty,
+            "centru_cost": centru_cost,
+        }
+    )
+
+
+@beta_tool
+@safe
+def raport_consumuri(
+    date_from: str | None = None, date_to: str | None = None, centru_cost: str | None = None
+) -> str:
+    """Consumurile dintr-o perioada, totalizate pe articol si pe centru de cost.
+
+    Args:
+        date_from: Data de inceput (YYYY-MM-DD); implicit inceputul anului curent.
+        date_to: Data de sfarsit (YYYY-MM-DD); implicit ziua curenta.
+        centru_cost: Filtreaza doar consumurile unui centru de cost.
+    """
+    from ._util import period
+
+    start, end = period(date_from, date_to)
+    c = conn()
+    args: list = [start, end]
+    filtru = ""
+    if centru_cost:
+        filtru = " AND b.cost_center = ?"
+        args.append(centru_cost)
+
+    pe_articol = rows(
+        c.execute(
+            "SELECT p.sku, p.name, p.unit, SUM(l.qty) AS qty, SUM(l.value_bani) AS value"
+            " FROM consumption_lines l JOIN consumptions b ON b.id = l.consumption_id"
+            " JOIN products p ON p.id = l.product_id"
+            f" WHERE b.date BETWEEN ? AND ?{filtru}"
+            " GROUP BY p.id ORDER BY value DESC",
+            args,
+        )
+    )
+    pe_centru = rows(
+        c.execute(
+            "SELECT COALESCE(b.cost_center, '(nespecificat)') AS centru,"
+            " SUM(l.value_bani) AS value FROM consumption_lines l"
+            " JOIN consumptions b ON b.id = l.consumption_id"
+            f" WHERE b.date BETWEEN ? AND ?{filtru}"
+            " GROUP BY centru ORDER BY value DESC",
+            args,
+        )
+    )
+    total = sum(int(r["value"]) for r in pe_articol)
+    return out(
+        {
+            "perioada": {"de_la": start, "pana_la": end},
+            "total_consum_ron": ron(total),
+            "pe_articol": [
+                {
+                    "sku": r["sku"],
+                    "denumire": r["name"],
+                    "cantitate": r["qty"],
+                    "um": r["unit"],
+                    "valoare_ron": ron(int(r["value"])),
+                }
+                for r in pe_articol
+            ],
+            "pe_centru_de_cost": [
+                {"centru": r["centru"], "valoare_ron": ron(int(r["value"]))} for r in pe_centru
+            ],
+        }
+    )
+
+
 TOOLS = [
     adauga_produs,
     cauta_produse,
@@ -453,4 +617,6 @@ TOOLS = [
     miscari_stoc,
     raport_stoc,
     actualizeaza_pret,
+    bon_consum,
+    raport_consumuri,
 ]

@@ -356,7 +356,7 @@ def situatie_generala(date_from: str | None = None, date_to: str | None = None) 
     stoc_redus = rows(
         c.execute(
             "SELECT sku, name, stock_qty, reorder_level FROM products"
-            " WHERE active = 1 AND is_service = 0 AND reorder_level > 0"
+            " WHERE active = 1 AND kind != 'serviciu' AND reorder_level > 0"
             " AND stock_qty <= reorder_level ORDER BY stock_qty"
         )
     )

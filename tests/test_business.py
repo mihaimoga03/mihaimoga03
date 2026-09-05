@@ -13,7 +13,7 @@ def firma(ok):
     """Un client, o marfa cu stoc si un serviciu - punctul de plecare al testelor."""
     client = ok(clients.adauga_client, name="Alfa SRL", cui="RO1", payment_terms_days=30)
     ok(inventory.adauga_produs, sku="CIM", name="Ciment", sale_price_ron=40.0, reorder_level=10)
-    ok(inventory.adauga_produs, sku="MAN", name="Manopera", sale_price_ron=100.0, serviciu=True)
+    ok(inventory.adauga_produs, sku="MAN", name="Manopera", sale_price_ron=100.0, tip="serviciu")
     ok(inventory.receptie_marfa, sku="CIM", qty=100, unit_cost_ron=25.0, supplier="Furnizor SRL")
     return client
 
@@ -261,3 +261,73 @@ def test_situatia_generala_aduna_toate_capitolele(ok, firma):
     assert situatie["creante_clienti_ron"] == 0.0
     assert situatie["vanzari"]["cifra_afaceri_ron"] == 400.0
     assert situatie["valoare_stoc_contabil_ron"] == 2250.0
+
+
+# --- consumabile si bonuri de consum ---------------------------------------
+
+
+@pytest.fixture
+def consumabil(ok, firma):
+    ok(inventory.adauga_produs, sku="MAN-PROT", name="Manusi protectie",
+       sale_price_ron=0, unit="pereche", tip="consumabil")
+    ok(inventory.receptie_marfa, sku="MAN-PROT", qty=200, unit_cost_ron=7.50,
+       supplier="Protect SRL")
+    return "MAN-PROT"
+
+
+def test_consumabilul_intra_pe_contul_302(ok, consumabil):
+    balanta = {c["cont"]: c for c in ok(books.balanta_verificare)["conturi"]}
+    assert balanta["302"]["rulaj_debitor_ron"] == 1500.0  # 200 x 7,50
+    assert balanta["371"]["rulaj_debitor_ron"] == 2500.0  # marfa, cont separat
+
+
+def test_bonul_de_consum_scade_stocul_si_trece_pe_cheltuiala(ok, consumabil):
+    bon = ok(inventory.bon_consum, sku="MAN-PROT", qty=20, centru_cost="Santier Militari",
+             motiv="Echipament protectie")
+
+    assert bon["numar_bon"] == 1
+    assert bon["valoare_ron"] == 150.0  # 20 x 7,50
+    assert bon["stoc_ramas"] == 180
+
+    balanta = {c["cont"]: c for c in ok(books.balanta_verificare)["conturi"]}
+    assert balanta["602"]["rulaj_debitor_ron"] == 150.0
+    assert balanta["302"]["rulaj_creditor_ron"] == 150.0
+    assert journal_is_balanced()
+
+
+def test_un_bon_poate_avea_mai_multe_pozitii(ok, consumabil):
+    primul = ok(inventory.bon_consum, sku="MAN-PROT", qty=10, centru_cost="Atelier")
+    al_doilea = ok(inventory.bon_consum, sku="CIM", qty=2, bon_id=primul["bon_id"])
+
+    assert al_doilea["bon_id"] == primul["bon_id"]
+    assert al_doilea["numar_bon"] == primul["numar_bon"]
+
+    raport = ok(inventory.raport_consumuri)
+    assert raport["total_consum_ron"] == 125.0  # 10 x 7,50 + 2 x 25
+    assert {r["sku"] for r in raport["pe_articol"]} == {"MAN-PROT", "CIM"}
+    assert raport["pe_centru_de_cost"][0]["centru"] == "Atelier"
+
+
+def test_consumul_marfii_merge_pe_607(ok, firma):
+    ok(inventory.bon_consum, sku="CIM", qty=4, motiv="Reparatii sediu")
+    balanta = {c["cont"]: c for c in ok(books.balanta_verificare)["conturi"]}
+    assert balanta["607"]["rulaj_debitor_ron"] == 100.0
+    assert balanta["371"]["rulaj_creditor_ron"] == 100.0
+
+
+def test_nu_se_consuma_peste_stoc(ok, call, consumabil):
+    result = call(inventory.bon_consum, sku="MAN-PROT", qty=500)
+    assert "Stoc insuficient" in result["eroare"]
+    assert ok(inventory.cauta_produse, query="MAN-PROT")["produse"][0]["stoc"] == 200
+
+
+def test_serviciul_nu_se_da_in_consum(call, firma):
+    assert "serviciu" in call(inventory.bon_consum, sku="MAN", qty=1)["eroare"]
+
+
+def test_raportul_de_consumuri_filtreaza_pe_centru(ok, consumabil):
+    ok(inventory.bon_consum, sku="MAN-PROT", qty=10, centru_cost="Santier A")
+    ok(inventory.bon_consum, sku="MAN-PROT", qty=4, centru_cost="Santier B")
+
+    raport = ok(inventory.raport_consumuri, centru_cost="Santier B")
+    assert raport["total_consum_ron"] == 30.0

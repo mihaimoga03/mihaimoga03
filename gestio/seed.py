@@ -61,7 +61,11 @@ def seed(reset: bool = False) -> dict[str, Any]:
     _call(inventory.adauga_produs, sku="GIP-125", name="Placa gips-carton 12.5mm",
           sale_price_ron=42.00, unit="buc", reorder_level=80)
     _call(inventory.adauga_produs, sku="SRV-MON", name="Manopera montaj",
-          sale_price_ron=95.00, unit="ora", serviciu=True)
+          sale_price_ron=95.00, unit="ora", tip="serviciu")
+    _call(inventory.adauga_produs, sku="MAN-PROT", name="Manusi protectie",
+          sale_price_ron=0, unit="pereche", tip="consumabil", reorder_level=40)
+    _call(inventory.adauga_produs, sku="DISC-230", name="Disc debitat 230mm",
+          sale_price_ron=0, unit="buc", tip="consumabil", reorder_level=25)
 
     _call(inventory.receptie_marfa, sku="CIM-42", qty=400, unit_cost_ron=26.00,
           supplier="Holcim Distributie SRL", doc_no="HD-4412", date=_d(40))
@@ -69,6 +73,12 @@ def seed(reset: bool = False) -> dict[str, Any]:
           supplier="Deco Import SRL", doc_no="DI-991", date=_d(35), plata_imediata="banca")
     _call(inventory.receptie_marfa, sku="GIP-125", qty=300, unit_cost_ron=28.50,
           supplier="Holcim Distributie SRL", doc_no="HD-4501", date=_d(20))
+
+    _call(inventory.receptie_marfa, sku="MAN-PROT", qty=240, unit_cost_ron=7.50,
+          supplier="Protect Echipamente SRL", doc_no="PE-118", date=_d(38),
+          plata_imediata="banca")
+    _call(inventory.receptie_marfa, sku="DISC-230", qty=120, unit_cost_ron=11.20,
+          supplier="Protect Echipamente SRL", doc_no="PE-119", date=_d(38))
 
     # Factura achitata integral catre primul client.
     f1 = _call(invoices.creeaza_factura, client="Alfa Construct SRL", issue_date=_d(30))
@@ -92,6 +102,17 @@ def seed(reset: bool = False) -> dict[str, Any]:
     _call(invoices.incaseaza_factura, invoice_id=f3["invoice_id"],
           amount_ron=round(emisa3["total_ron"] / 2, 2), method="banca", date=_d(2))
 
+    # Bonuri de consum: consumabile date pe santiere.
+    bon = _call(inventory.bon_consum, sku="MAN-PROT", qty=60,
+                centru_cost="Santier Militari", motiv="Echipament protectie", date=_d(28))
+    _call(inventory.bon_consum, sku="DISC-230", qty=35, bon_id=bon["bon_id"])
+    _call(inventory.bon_consum, sku="MAN-PROT", qty=24, centru_cost="Atelier",
+          motiv="Intretinere utilaje", date=_d(15))
+    _call(inventory.bon_consum, sku="DISC-230", qty=18, centru_cost="Santier Berceni",
+          motiv="Debitare armatura", date=_d(6))
+    _call(inventory.bon_consum, sku="CIM-42", qty=15, centru_cost="Sediu",
+          motiv="Reparatii platforma depozit", date=_d(9))
+
     _call(books.inregistreaza_cheltuiala, account="612", amount_ron=3500,
           description="Chirie depozit", method="banca", date=_d(25))
     _call(books.inregistreaza_cheltuiala, account="605", amount_ron=742.30,
@@ -102,7 +123,7 @@ def seed(reset: bool = False) -> dict[str, Any]:
     return {
         "ok": True,
         "clienti": [c1["client_id"], c2["client_id"], c3["client_id"]],
-        "produse": 4,
+        "produse": 6,
         "facturi": [f1["invoice_id"], f2["invoice_id"], f3["invoice_id"]],
         "baza_de_date": config.DB_PATH,
         "mesaj": "Date demonstrative create. Incearca: gestio ask 'cum stam?'",

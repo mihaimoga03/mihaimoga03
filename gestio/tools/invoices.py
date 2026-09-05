@@ -8,7 +8,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from anthropic import beta_tool
 
 from .. import config
-from ..accounting import cash_account, post
+from ..accounting import cash_account, cost_account, post, stock_account
 from ..db import rows, transaction
 from ..money import line_amounts, ron_to_bani
 from ._util import (
@@ -214,12 +214,12 @@ def emite_factura(invoice_id: int) -> str:
         if not lines:
             raise ToolError("Nu poti emite o factura fara linii.")
 
-        cogs_total = 0
+        cogs_by_kind: dict[str, int] = {}
         for line in lines:
             if not line["product_id"]:
                 continue
             product = dict(c.execute("SELECT * FROM products WHERE id = ?", (line["product_id"],)).fetchone())
-            if product["is_service"]:
+            if product["kind"] == "serviciu":
                 continue
             value, _ = record_move(
                 c,
@@ -232,7 +232,7 @@ def emite_factura(invoice_id: int) -> str:
                 ref_id=invoice_id,
             )
             cogs = -value
-            cogs_total += cogs
+            cogs_by_kind[product["kind"]] = cogs_by_kind.get(product["kind"], 0) + cogs
             c.execute("UPDATE invoice_lines SET cogs_bani = ? WHERE id = ?", (cogs, line["id"]))
 
         totals = _recalc_totals(c, invoice_id)
@@ -250,15 +250,21 @@ def emite_factura(invoice_id: int) -> str:
             entries.append(("4427", 0, totals["vat"], "TVA colectata"))
         post(c, invoice["issue_date"], "factura", invoice_id, f"Factura {doc}", entries)
 
-        if cogs_total:
+        for kind, cogs in cogs_by_kind.items():
+            if not cogs:
+                continue
             post(
                 c,
                 invoice["issue_date"],
                 "descarcare_gestiune",
                 invoice_id,
                 f"Descarcare gestiune factura {doc}",
-                [("607", cogs_total, 0, "Cost marfa vanduta"), ("371", 0, cogs_total, "Iesire marfa")],
+                [
+                    (cost_account(kind), cogs, 0, f"Cost {kind} vanduta"),
+                    (stock_account(kind), 0, cogs, f"Iesire {kind}"),
+                ],
             )
+        cogs_total = sum(cogs_by_kind.values())
 
         invoice = _get_invoice(c, invoice_id)
         payload = _invoice_payload(c, invoice)
@@ -358,7 +364,7 @@ def anuleaza_factura(invoice_id: int, motiv: str) -> str:
             return out({"ok": True, "invoice_id": invoice_id, "status": "anulata", "note": "Ciorna anulata."})
 
         lines = rows(c.execute("SELECT * FROM invoice_lines WHERE invoice_id = ?", (invoice_id,)))
-        restored = 0
+        restored_by_kind: dict[str, int] = {}
         for line in lines:
             if not line["product_id"] or line["qty"] <= 0 or not line["cogs_bani"]:
                 continue
@@ -372,7 +378,7 @@ def anuleaza_factura(invoice_id: int, motiv: str) -> str:
                 c, product, today(), "stornare", float(line["qty"]), unit_cost,
                 ref_type="stornare_factura", ref_id=invoice_id, note=motiv,
             )
-            restored += line["cogs_bani"]
+            restored_by_kind[product["kind"]] = restored_by_kind.get(product["kind"], 0) + line["cogs_bani"]
 
         entries = [("4111", 0, invoice["total_bani"], "Stornare creanta")]
         if invoice["net_bani"]:
@@ -381,15 +387,21 @@ def anuleaza_factura(invoice_id: int, motiv: str) -> str:
             entries.append(("4427", invoice["vat_bani"], 0, "Stornare TVA colectata"))
         post(c, today(), "stornare_factura", invoice_id, f"Stornare factura {doc}: {motiv}", entries)
 
-        if restored:
+        for kind, value in restored_by_kind.items():
+            if not value:
+                continue
             post(
                 c,
                 today(),
                 "stornare_descarcare",
                 invoice_id,
                 f"Stornare descarcare gestiune {doc}",
-                [("371", restored, 0, "Repunere marfa"), ("607", 0, restored, "Stornare cost")],
+                [
+                    (stock_account(kind), value, 0, f"Repunere {kind}"),
+                    (cost_account(kind), 0, value, "Stornare cost"),
+                ],
             )
+        restored = sum(restored_by_kind.values())
         c.execute("UPDATE invoices SET status = 'anulata' WHERE id = ?", (invoice_id,))
 
     return out(

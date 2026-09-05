@@ -18,7 +18,8 @@ Valoare 5.200,00 RON + TVA 1.092,00 RON = 6.292,00 RON datorie către Holcim.
 | Domeniu | Operațiuni |
 | --- | --- |
 | **Clienți** | adăugare și actualizare, căutare, fișă de client, extras de cont, raport de scadențe (aging) pe intervale de întârziere |
-| **Stoc** | nomenclator de produse și servicii, recepții cu recalcularea costului mediu ponderat, ajustări de inventar, istoric de mișcări, raport de reaprovizionare |
+| **Stoc** | nomenclator de mărfuri, consumabile și servicii, recepții cu recalcularea costului mediu ponderat, ajustări de inventar, istoric de mișcări, raport de reaprovizionare |
+| **Consumuri** | bonuri de consum cu mai multe poziții, repartizare pe centre de cost, raport de consumuri pe articol și pe centru |
 | **Facturare** | ciornă → linii → emitere, numerotare pe serie, descărcare de gestiune, încasări totale și parțiale, stornare |
 | **Contabilitate** | note în partidă dublă pe planul de conturi românesc, cheltuieli, plăți către furnizori, balanță de verificare, cont de profit și pierdere, decont de TVA, jurnal |
 
@@ -37,8 +38,29 @@ gestio seed            # date demonstrative: 3 clienți, 4 produse, 3 facturi
 gestio chat            # conversație interactivă
 gestio ask "cum stăm?" # o singură întrebare
 gestio unelte          # lista uneltelor disponibile
+gestio raport          # raport HTML de deschis pe telefon sau de trimis contabilului
 gestio sql "SELECT * FROM invoices"   # doar SELECT, pentru depanare
 ```
+
+### Import din fișiere
+
+```bash
+gestio import clienti  clienti.csv
+gestio import stoc     stoc.csv       # creează articolele și le dă sold inițial
+gestio import vanzari  vanzari.csv    # grupează liniile pe număr de factură și le emite
+gestio import consumuri bonuri.csv    # grupează liniile pe număr de bon
+```
+
+Antetele sunt recunoscute flexibil — nu contează diacriticele, majusculele sau ordinea
+coloanelor, iar numerele pot fi scrise românește (`1.234,56`) și datele `31.12.2026`.
+Un rând stricat nu oprește importul: apare în lista de erori din raportul final.
+
+| Fișier | Coloane recunoscute |
+| --- | --- |
+| `clienti` | client/denumire, cui, adresă, email, telefon, termen |
+| `stoc` | cod/sku, denumire, um, tip, preț, cotă tva, stoc, cost unitar, prag |
+| `vanzari` | număr, dată, client, cod, cantitate, preț, încasat |
+| `consumuri` | număr, dată, cod, cantitate, centru cost, motiv |
 
 În `chat` ai comenzile `/reset` (șterge conversația, nu datele), `/unelte` și `/ieșire`.
 
@@ -60,11 +82,13 @@ gestio/
 ├── db.py           schema SQLite și tranzacțiile
 ├── money.py        aritmetica în bani, întregi — niciun float în calcule
 ├── accounting.py   planul de conturi și înregistrarea notelor contabile
+├── importer.py     import din CSV, cu antete tolerante la diacritice si formate
+├── report.py       raportul HTML de sine statator
 ├── seed.py         date demonstrative
 ├── cli.py          interfața de linie de comandă
-└── tools/          cele 29 de unelte pe care le apelează modelul
+└── tools/          cele 31 de unelte pe care le apelează modelul
     ├── clients.py     clienți, solduri, scadențe
-    ├── inventory.py   produse, recepții, mișcări de stoc
+    ├── inventory.py   produse, recepții, mișcări de stoc, bonuri de consum
     ├── invoices.py    facturare, încasări, stornare
     └── books.py       cheltuieli, rapoarte, jurnal
 ```
@@ -93,6 +117,10 @@ integral și factura rămâne ciornă.
 se descarcă la CMP-ul curent, iar costul efectiv al fiecărei linii de factură se
 memorează, ca stornarea să repună marfa la costul cu care a plecat.
 
+**Fiecare tip de articol are conturile lui.** Marfa intră pe 371 și se descarcă pe 607,
+consumabilul intră pe 302 și se descarcă pe 602, serviciul nu ține stoc deloc — așa că
+un bon de consum și o factură ating conturile corecte fără ca cineva să le aleagă manual.
+
 **Erorile de business ajung la model ca text, nu ca excepții.** Un client inexistent sau
 un stoc insuficient întorc `{"eroare": "..."}`, iar agentul poate corecta din mers —
 o excepție ar opri bucla.
@@ -103,16 +131,18 @@ o excepție ar opri bucla.
 pytest
 ```
 
-Cele 35 de teste rulează pe o bază de date în memorie și acoperă rotunjirile, costul
-mediu ponderat, ciclul complet de facturare, încasările parțiale, stornarea, decontul de
-TVA și bucla agentului (cu un client fals — nu se apelează API-ul).
+Cele 55 de teste rulează pe o bază de date în memorie și acoperă rotunjirile, costul
+mediu ponderat, ciclul complet de facturare, încasările parțiale, stornarea, bonurile de
+consum, importul din CSV (inclusiv fișiere cu rânduri stricate) și bucla agentului (cu un
+client fals — nu se apelează API-ul).
 
 ## Limitări cunoscute
 
 - Un singur exercițiu financiar, fără închidere de lună sau de an și fără reportarea
   soldurilor inițiale.
 - Fără facturi în valută, discounturi pe linie sau taxare inversă.
-- Fără e-Factura / SAF-T; datele sunt exportabile doar prin `gestio sql`.
+- Fără e-Factura / SAF-T; exportul se face prin `gestio raport` sau `gestio sql`.
+- Importul citește CSV; un Excel trebuie salvat întâi ca CSV.
 - Cotele de TVA implicite sunt cele din România (21% standard, 11% redusă) și se
   configurează prin `GESTIO_VAT_RATE`.
 - Aplicația ține evidența, dar nu ține locul unui contabil autorizat.
