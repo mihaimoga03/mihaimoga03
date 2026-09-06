@@ -190,6 +190,7 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
       <button role="tab" data-view="vanzari" aria-selected="false">Vanzari</button>
       <button role="tab" data-view="achizitii" aria-selected="false">Achizitii</button>
       <button role="tab" data-view="stoc" aria-selected="false">Stoc</button>
+      <button role="tab" data-view="service" aria-selected="false">Service</button>
       <button role="tab" data-view="clienti" aria-selected="false">Clienti</button>
       <button role="tab" data-view="istoric" aria-selected="false">Istoric</button>
       <button role="tab" data-view="sfaturi" aria-selected="false">Sfaturi</button>
@@ -259,6 +260,18 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
     <h3>Consumuri pe centru de cost</h3>
     <div class="panel"><div id="chart-consum"></div>
       <div class="scroll"><table id="tab-consum"></table></div></div>
+  </section>
+
+  <section class="view" id="view-service" hidden>
+    <h2>Fise de service</h2>
+    <p class="note" id="nota-service"></p>
+    <div class="tiles" id="tiles-service"></div>
+
+    <h3>In lucru</h3>
+    <div class="panel"><div class="scroll"><table id="tab-fise-lucru"></table></div></div>
+
+    <h3>Predate</h3>
+    <div class="panel"><div class="scroll"><table id="tab-fise-predate"></table></div></div>
   </section>
 
   <section class="view" id="view-clienti" hidden>
@@ -362,7 +375,7 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
   var MONEDA = "RON";
   var LUNI = ["ian","feb","mar","apr","mai","iun","iul","aug","sep","oct","noi","dec"];
   var COLECTII = ["products", "clients", "invoices", "zreports", "consumptions",
-                "adjustments", "periods", "meta"];
+                "adjustments", "periods", "fise", "meta"];
 
   var CATEGORII = ["Ecrane si display", "Baterii si acumulatori", "Huse si carcase",
     "Folii de protectie", "Cabluri si adaptoare", "Incarcatoare si alimentare",
@@ -373,7 +386,7 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
 
   var db = null;
   var S = { products: [], clients: [], invoices: [], zreports: [], consumptions: [],
-          adjustments: [], periods: [], meta: [] };
+          adjustments: [], periods: [], fise: [], meta: [] };
   var vizibil = "acasa";
 
   // ------------------------------------------------------------------- bani
@@ -845,14 +858,76 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
         }), 1);
   }
 
+  var STARI = {
+    de_reparat: { text: "de reparat", ton: "mut" },
+    in_lucru: { text: "in lucru", ton: "warn" },
+    de_comandat_piese: { text: "de comandat piese", ton: "warn" },
+    asteptare_piese: { text: "asteptare piese", ton: "warn" },
+    reparat: { text: "reparat", ton: "good" },
+    predat: { text: "predat", ton: "good" },
+    nereparabil: { text: "nereparabil", ton: "bad" }
+  };
+
+  function totalFisa(f) { return (f.manopera || 0) + (f.piese || 0); }
+  function restantFisa(f) {
+    return f.achitat ? 0 : Math.max(0, totalFisa(f) - (f.avans || 0));
+  }
+  function inLucru(f) { return f.status !== "predat" && f.status !== "nereparabil"; }
+
+  function randeazaService() {
+    var fise = S.fise.slice().sort(function (a, b) {
+      return (b.primire || "").localeCompare(a.primire || "");
+    });
+    var lucru = fise.filter(inLucru);
+    var predate = fise.filter(function (f) { return !inLucru(f); });
+    var valoareLucru = lucru.reduce(function (t, f) { return t + totalFisa(f); }, 0);
+    var deIncasat = fise.reduce(function (t, f) { return t + restantFisa(f); }, 0);
+    var incasat = fise.reduce(function (t, f) {
+      return t + (f.achitat ? totalFisa(f) : (f.avans || 0));
+    }, 0);
+    var manopera = fise.reduce(function (t, f) { return t + (f.manopera || 0); }, 0);
+
+    document.getElementById("tiles-service").innerHTML = [
+      tile("Fise in lucru", String(lucru.length), lei(valoareLucru) + " " + MONEDA + " estimat",
+           lucru.length ? "warn" : "good"),
+      tile("Incasat", lei(incasat), predate.length + " fise finalizate"),
+      tile("De incasat", lei(deIncasat), "de la clienti pe fise", deIncasat ? "bad" : "good"),
+      tile("Manopera", lei(manopera), "din " + fise.length + " fise")
+    ].join("");
+
+    function rand(f) {
+      var stare = STARI[f.status] || { text: f.status, ton: "mut" };
+      var aparat = [f.aparat, f.marca, f.model].filter(function (x) { return x; }).join(" ");
+      return { celule: [esc(f.numar || ""), esc(f.client || ""), esc(aparat),
+                        '<span class="pill pill-' + stare.ton + '">' + esc(stare.text) + "</span>",
+                        lei(totalFisa(f)),
+                        restantFisa(f) ? '<span class="offline">' + lei(restantFisa(f)) + "</span>"
+                                       : lei(0)] };
+    }
+    var capuri = ["Fisa", "Client", "Aparat", "Stare", "Total (" + MONEDA + ")", "Restant"];
+    document.getElementById("tab-fise-lucru").innerHTML = tabel(capuri, lucru.map(rand), 3);
+    document.getElementById("tab-fise-predate").innerHTML = tabel(capuri, predate.map(rand), 3);
+
+    var fara = S.fise.filter(function (f) { return !f.piese; }).length;
+    document.getElementById("nota-service").textContent =
+      S.fise.length
+        ? "Preluate din aplicatia de service. Costul pieselor e o suma pe fisa, nu pe articol - " +
+          "in aplicatia de service tabelul de piese e gol, deci nu se pot lega de stoc." +
+          (fara ? " " + fara + " fise nu au niciun cost de piese trecut." : "")
+        : "Nicio fisa preluata inca.";
+  }
+
   function randeazaClienti() {
     document.getElementById("tab-clienti").innerHTML = tabel(
-      ["Client", "CUI", "Termen", "Sold restant (" + MONEDA + ")"],
+      ["Client", "Contact", "Fise", "Sold restant (" + MONEDA + ")"],
       S.clients.slice().sort(function (a, b) { return (a.nume || "").localeCompare(b.nume || ""); })
         .map(function (c) {
           var sold = facturi("out").filter(function (f) { return f.partener === c.nume; })
             .reduce(function (t, f) { return t + Math.max(0, (f.total || 0) - (f.incasat || 0)); }, 0);
-          return { celule: [esc(c.nume), esc(c.cui || ""), (c.termen || 30) + " zile", lei(sold)] };
+          var aleLui = S.fise.filter(function (f) { return f.client === c.nume; });
+          sold += aleLui.reduce(function (t, f) { return t + restantFisa(f); }, 0);
+          return { celule: [esc(c.nume), esc(c.telefon || c.cui || ""),
+                            String(aleLui.length), lei(sold)] };
         }), 2);
   }
 
@@ -898,6 +973,7 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
     randeazaAchizitii();
     randeazaStoc();
     randeazaIstoric();
+    randeazaService();
     randeazaClienti();
   }
 
@@ -1459,6 +1535,23 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
       Object.keys(peCentru).forEach(function (k) {
         linii.push("- " + k + ": " + lei(peCentru[k]));
       });
+    }
+
+    if (S.fise.length) {
+      linii.push("\nFISE DE SERVICE (" + S.fise.length + "):");
+      S.fise.slice().sort(function (a, b) {
+        return (a.primire || "").localeCompare(b.primire || "");
+      }).forEach(function (f) {
+        var stare = (STARI[f.status] || { text: f.status }).text;
+        linii.push("- " + f.numar + " " + (f.primire || "") + " | " + f.client + " | " +
+                   [f.aparat, f.marca, f.model].filter(function (x) { return x; }).join(" ") +
+                   " | " + (f.defect || "") + " | " + stare +
+                   " | manopera " + lei(f.manopera || 0) + ", piese " + lei(f.piese || 0) +
+                   ", incasat " + lei(f.achitat ? totalFisa(f) : (f.avans || 0)) +
+                   (restantFisa(f) ? ", RESTANT " + lei(restantFisa(f)) : ""));
+      });
+      linii.push("Atentie: costul pieselor e o suma pe fisa, nu pe articol - nu se poate lega " +
+                 "de stoc, pentru ca in aplicatia de service tabelul de piese e gol.");
     }
 
     var out = facturi("out"), inn = facturi("in");

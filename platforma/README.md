@@ -36,9 +36,15 @@ Cele două împart regulile de business (bani în unități întregi, cost mediu
 ponderat, TVA la 21%), dar sunt implementări separate — o modificare într-una
 nu se propagă singură în cealaltă.
 
+Fila **Service** ține fișele de reparație preluate din aplicația de service
+(Supabase, proiectul `gestiune-service`): client, aparat, defect, stare, manoperă,
+piese, avans, încasat. Soldul unui client adună restanțele de pe fișe, nu doar
+facturile. Costul pieselor vine ca sumă pe fișă — tabelul `piese` din aplicația de
+service e gol, deci nu se poate lega articol cu articol de stoc.
+
 Colecțiile din baza artefactului: `products` (cu `categorie` și `gestiune`),
 `clients`, `invoices` (cu `tip` `out` sau `in`), `zreports`, `consumptions`,
-`adjustments`, `periods` (o lună per document, id `YYYY-MM`), `meta`.
+`adjustments`, `periods` (o lună per document, id `YYYY-MM`), `fise`, `meta`.
 
 Capacitățile declarate: `db` pentru bază, `sample` pentru panoul de sfaturi.
 Rezumatul trimis modelului e construit din datele paginii — categorii, cele mai
