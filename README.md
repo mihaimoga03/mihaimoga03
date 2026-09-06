@@ -93,6 +93,13 @@ gestio/
     └── books.py       cheltuieli, rapoarte, jurnal
 ```
 
+Pe lângă agent, depozitul ține și cele două aplicații care lucrează cu aceleași cifre:
+
+| Director | Ce e |
+| --- | --- |
+| `platforma/` | pagina publicată ca Artifact pe claude.ai — firma întreagă, deschisă de pe telefon |
+| *(alt depozit, privat)* | aplicația de service — fișe de reparație, stocul de piese și bonurile de consum, Next.js pe Vercel peste aceeași bază Supabase |
+
 Modelul folosit este `claude-opus-5`, cu gândire adaptivă și cu *server-side fallback*
 activat, ca o cerere refuzată de clasificatoarele de siguranță să fie preluată automat
 de un model alternativ în loc să întrerupă conversația. Promptul de sistem este împărțit

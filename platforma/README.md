@@ -39,8 +39,14 @@ nu se propagă singură în cealaltă.
 Fila **Service** ține fișele de reparație preluate din aplicația de service
 (Supabase, proiectul `gestiune-service`): client, aparat, defect, stare, manoperă,
 piese, avans, încasat. Soldul unui client adună restanțele de pe fișe, nu doar
-facturile. Costul pieselor vine ca sumă pe fișă — tabelul `piese` din aplicația de
-service e gol, deci nu se poate lega articol cu articol de stoc.
+facturile. Costul pieselor vine ca sumă pe fișă, pentru că fișele preluate până acum
+sunt dinainte de legarea pieselor de stoc.
+
+**Stocul are de acum două locuri, cu roluri diferite.** Sursa de adevăr e aplicația de
+service (vezi `service/`): acolo articolele sunt legate de piesele de pe fișă, acolo se
+vede la primire dacă piesa e în casă sau trebuie comandată, și tot acolo ies pe bon de
+consum. Nomenclatorul de aici e o copie, folosită pentru rapoartele și sfaturile care
+privesc firma întreagă — o mișcare făcută în service nu se propagă singură în platformă.
 
 Colecțiile din baza artefactului: `products` (cu `categorie` și `gestiune`),
 `clients`, `invoices` (cu `tip` `out` sau `in`), `zreports`, `consumptions`,
