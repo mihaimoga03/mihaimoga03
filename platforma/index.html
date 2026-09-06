@@ -911,8 +911,9 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
     var fara = S.fise.filter(function (f) { return !f.piese; }).length;
     document.getElementById("nota-service").textContent =
       S.fise.length
-        ? "Preluate din aplicatia de service. Costul pieselor e o suma pe fisa, nu pe articol - " +
-          "in aplicatia de service tabelul de piese e gol, deci nu se pot lega de stoc." +
+        ? "Preluate din aplicatia de service, unde piesele se leaga acum de stoc si ies pe " +
+          "bon de consum. Fisele de aici au inca doar suma pe piese, nu si liniile - se vad " +
+          "pe articol de la primele fise facute cu stocul legat." +
           (fara ? " " + fara + " fise nu au niciun cost de piese trecut." : "")
         : "Nicio fisa preluata inca.";
   }
@@ -1550,8 +1551,9 @@ svg text{font-family:"IBM Plex Sans",system-ui,sans-serif}
                    ", incasat " + lei(f.achitat ? totalFisa(f) : (f.avans || 0)) +
                    (restantFisa(f) ? ", RESTANT " + lei(restantFisa(f)) : ""));
       });
-      linii.push("Atentie: costul pieselor e o suma pe fisa, nu pe articol - nu se poate lega " +
-                 "de stoc, pentru ca in aplicatia de service tabelul de piese e gol.");
+      linii.push("Atentie: pe fisele astea costul pieselor e o suma pe fisa, nu pe articol. " +
+                 "Stocul e tinut in aplicatia de service, care leaga piesele de articole si le " +
+                 "scade pe bon de consum, dar fisele de mai sus sunt dinainte de legatura.");
     }
 
     var out = facturi("out"), inn = facturi("in");
