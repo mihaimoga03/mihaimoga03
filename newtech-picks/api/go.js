@@ -4,7 +4,10 @@ import { productBySlug, offersFor, affiliateUrl, normalizeCountry } from "../cat
 const BOT = /bot|crawl|spider|slurp|preview|facebookexternalhit|headless/i;
 
 export async function logClick(row, env = process.env, fetchImpl = fetch) {
-  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) return false;
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+    console.log(JSON.stringify({ click: row })); // fără Supabase, click-ul se vede în logurile Vercel
+    return false;
+  }
   try {
     const r = await fetchImpl(`${env.SUPABASE_URL}/rest/v1/clicks`, {
       method: "POST",
