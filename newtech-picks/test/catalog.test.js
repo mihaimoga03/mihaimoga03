@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { PRODUCTS, STORES, offersFor, affiliateUrl, productBySlug } from "../catalog.js";
-import { resolve, logClick } from "../api/go.js";
+import { PRODUCTS, STORES, offersFor, affiliateUrl, productBySlug, cleanSource } from "../public/catalog.js";
+import { resolve } from "../lib/redirect.js";
+import { onRequest as go } from "../functions/go/[slug].js";
+import { onRequest as geo } from "../functions/api/geo.js";
 
 const p = productBySlug("multimetru-true-rms");
 const store = id => STORES.find(s => s.id === id);
@@ -48,14 +50,14 @@ test("șablonul de deep link codează adresa magazinului", () => {
 });
 
 test("/go: țara aleasă bate IP-ul, magazinul cerut e respectat", () => {
-  const hit = resolve({ p: p.slug, c: "ro", s: "ali" }, { "x-vercel-ip-country": "DE" }, {});
+  const hit = resolve({ p: p.slug, c: "ro", s: "ali" }, { country: "DE" }, {});
   assert.equal(hit.row.country, "RO");
   assert.equal(hit.row.country_source, "ales");
   assert.equal(hit.row.store, "ali");
 });
 
 test("/go: fără țară folosește IP-ul și recomandatul; magazin nelivrabil e ignorat", () => {
-  const hit = resolve({ p: p.slug, s: "emag" }, { "x-vercel-ip-country": "US" }, {});
+  const hit = resolve({ p: p.slug, s: "emag" }, { country: "US" }, {});
   assert.equal(hit.row.country, "US");
   assert.equal(hit.row.country_source, "ip");
   assert.equal(hit.row.store, "amz");
@@ -65,8 +67,31 @@ test("/go: produs necunoscut → null", () => {
   assert.equal(resolve({ p: "nu-exista" }, {}, {}), null);
 });
 
-test("logClick nu scrie fără Supabase și nu aruncă la eroare", async () => {
-  assert.equal(await logClick({}, {}), false);
-  const boom = () => Promise.reject(new Error("down"));
-  assert.equal(await logClick({}, { SUPABASE_URL: "x", SUPABASE_SERVICE_KEY: "k" }, boom), false);
+test("sursa de trafic: curățată și trimisă ca sub-ID", () => {
+  assert.equal(cleanSource("IG"), "ig");
+  assert.equal(cleanSource("<script>"), "");
+  const env = { AFF_TEMPLATE_EMAG: "https://aff.example/c?to={url}&sub={src}", EBAY_CAMPAIGN_ID: "5" };
+  assert.match(affiliateUrl(store("emag"), p, "RO", env, "ig"), /&sub=ig$/);
+  assert.match(affiliateUrl(store("emag"), p, "RO", env), /&sub=site$/);
+  assert.match(affiliateUrl(store("ebay"), p, "DE", env, "tiktok"), /&customid=tiktok$/);
+  assert.equal(resolve({ p: p.slug, src: "fb" }, {}, {}).row.src, "fb");
+});
+
+test("funcția /go pe Cloudflare: țara din cf, redirect 302", () => {
+  const request = new Request("https://x.pages.dev/go/multimetru-true-rms?src=ig", { headers: { "user-agent": "Mozilla" } });
+  request.cf = { country: "GB" };
+  const r = go({ request, params: { slug: "multimetru-true-rms" }, env: { AMAZON_TAG_GB: "uk-21" } });
+  assert.equal(r.status, 302);
+  assert.equal(r.headers.get("location"), "https://www.amazon.co.uk/s?k=true%20rms%20digital%20multimeter&tag=uk-21");
+});
+
+test("funcția /go: produs inexistent → prima pagină", () => {
+  const r = go({ request: new Request("https://x.pages.dev/go/nimic"), params: { slug: "nimic" }, env: {} });
+  assert.equal(r.status, 302);
+  assert.equal(r.headers.get("location"), "https://x.pages.dev/");
+});
+
+test("funcția /api/geo întoarce țara din header", async () => {
+  const r = geo({ request: new Request("https://x/api/geo", { headers: { "cf-ipcountry": "RO" } }) });
+  assert.deepEqual(await r.json(), { country: "RO" });
 });

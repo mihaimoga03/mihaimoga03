@@ -80,6 +80,9 @@ export const normalizeCountry = c => {
   return up in COUNTRIES ? up : "XX";
 };
 
+// Sursa de trafic din link (?src=ig): doar litere, cifre, - și _, ca să nu ajungă gunoi în URL-uri.
+export const cleanSource = s => (/^[a-z0-9_-]{1,24}$/i.test(String(s || "")) ? String(s).toLowerCase() : "");
+
 export const productBySlug = slug => PRODUCTS.find(p => p.slug === slug);
 
 // Magazinele care livrează produsul în țara dată, cel recomandat primul.
@@ -91,8 +94,9 @@ export function offersFor(p, c) {
 }
 
 // Linkul final spre magazin, cu ID-ul de afiliat dacă e configurat în env.
+// src = de unde vine vizitatorul (ig, tiktok, fb…); ajunge ca sub-ID în rețelele care îl acceptă.
 // Fără configurare întoarce linkul simplu, ca site-ul să meargă și înainte de aprobarea în programe.
-export function affiliateUrl(store, p, c, env = {}) {
+export function affiliateUrl(store, p, c, env = {}, src = "") {
   const plain = store.url(p, c);
   if (store.id === "amz") {
     const tag = env[`AMAZON_TAG_${c}`] || env.AMAZON_TAG;
@@ -101,9 +105,11 @@ export function affiliateUrl(store, p, c, env = {}) {
   if (store.id === "ebay") {
     const camp = env.EBAY_CAMPAIGN_ID;
     return camp
-      ? `${plain}&mkcid=1&mkrid=${EBAY_ROTATION[c]}&campid=${enc(camp)}&toolid=10001&mkevt=1`
+      ? `${plain}&mkcid=1&mkrid=${EBAY_ROTATION[c]}&campid=${enc(camp)}&toolid=10001&mkevt=1${src ? `&customid=${enc(src)}` : ""}`
       : plain;
   }
   const tpl = env[`AFF_TEMPLATE_${store.id.toUpperCase()}`];
-  return tpl && tpl.includes("{url}") ? tpl.replace("{url}", enc(plain)) : plain;
+  return tpl && tpl.includes("{url}")
+    ? tpl.replace("{url}", enc(plain)).replace("{src}", enc(src || "site"))
+    : plain;
 }

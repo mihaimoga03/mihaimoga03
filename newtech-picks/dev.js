@@ -1,25 +1,30 @@
-// Server local care imită Vercel: fișiere statice, /api/*, rescrierea /go/:slug.
+// Server local care imită Cloudflare Pages: fișiere din public/ și funcțiile din functions/.
 // Pornire: node dev.js  (opțional COUNTRY=DE ca să simulezi țara după IP)
 import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
+import * as go from "./functions/go/[slug].js";
+import * as geo from "./functions/api/geo.js";
 
-const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css" };
-const root = new URL(".", import.meta.url).pathname;
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".png": "image/png" };
+const pub = new URL("./public/", import.meta.url).pathname;
+const env = { ...process.env };
 
 http.createServer(async (req, res) => {
-  const url = new URL(req.url, "http://localhost");
-  req.query = Object.fromEntries(url.searchParams);
-  if (process.env.COUNTRY) req.headers["x-vercel-ip-country"] = process.env.COUNTRY;
-  let path = url.pathname;
-  const go = path.match(/^\/go\/([^/]+)$/);
-  if (go) { req.query.p = go[1]; path = "/api/go"; }
-  if (path.startsWith("/api/")) {
-    const mod = await import(join(root, `${path}.js`)).catch(() => null);
-    if (mod) return mod.default(req, res);
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const headers = { ...req.headers };
+  if (process.env.COUNTRY) headers["cf-ipcountry"] = process.env.COUNTRY;
+  const request = new Request(url, { headers });
+  const m = url.pathname.match(/^\/go\/([^/]+)$/);
+  let out = null;
+  if (m) out = go.onRequest({ request, params: { slug: m[1] }, env });
+  else if (url.pathname === "/api/geo") out = geo.onRequest({ request });
+  if (out) {
+    res.writeHead(out.status, Object.fromEntries(out.headers));
+    return res.end(Buffer.from(await out.arrayBuffer()));
   }
-  const file = normalize(join(root, path === "/" ? "index.html" : path));
-  if (!file.startsWith(root) || file.includes("/api/") || file.includes("/test/")) { res.statusCode = 404; return res.end(); }
+  const file = normalize(join(pub, url.pathname === "/" ? "index.html" : url.pathname));
+  if (!file.startsWith(pub)) { res.statusCode = 404; return res.end(); }
   try {
     const body = await readFile(file);
     res.setHeader("Content-Type", TYPES[extname(file)] || "application/octet-stream");

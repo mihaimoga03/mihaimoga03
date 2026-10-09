@@ -1,7 +1,18 @@
-import { COUNTRIES, CATS, PRODUCTS, offersFor, normalizeCountry } from "./catalog.js";
+import { COUNTRIES, CATS, PRODUCTS, offersFor, normalizeCountry, cleanSource } from "./catalog.js";
 
 const KEY = "ntp-country";
 let country = "RO", cat = "all", picked = false;
+
+// De unde a venit vizitatorul (?src=ig sau ?utm_source=instagram); se păstrează cât e deschis tab-ul.
+const SRC = (() => {
+  const q = new URLSearchParams(location.search);
+  let s = cleanSource(q.get("src") || q.get("utm_source"));
+  try {
+    if (s) sessionStorage.setItem("ntp-src", s);
+    else s = sessionStorage.getItem("ntp-src") || "";
+  } catch {}
+  return s;
+})();
 
 const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
 
@@ -27,18 +38,43 @@ function render() {
   grid.innerHTML = list.map(p => {
     const o = offersFor(p, country);
     const rows = o.length ? o.map((x, i) => `
-      <a class="offer${i === 0 && x.score > 0 ? " best" : ""}" href="/go/${p.slug}?c=${country}&s=${x.s.id}" target="_blank" rel="sponsored noopener">
+      <a class="offer${i === 0 && x.score > 0 ? " best" : ""}" href="/go/${p.slug}?c=${country}&s=${x.s.id}${SRC ? `&src=${SRC}` : ""}" target="_blank" rel="sponsored noopener">
         <span><span class="s">${esc(x.s.name)}</span><br><span class="m">${esc(x.s.net)}</span></span>
         <span class="go">Vezi oferta →</span>
       </a>`).join("") : '<span class="none">Niciun magazin nu livrează aici.</span>';
-    return `<article class="card">
+    return `<article class="card" id="${p.slug}">
       <span class="cat">${esc(CATS[p.cat])}</span>
       <h2>${esc(p.t)}</h2>
       <p class="why">${esc(p.why)}</p>
       <div class="spec">${esc(p.spec)}</div>
       <div class="offers">${rows}</div>
+      <button type="button" class="share" data-slug="${p.slug}" data-t="${esc(p.t)}">Trimite produsul</button>
     </article>`;
   }).join("");
+}
+
+// Link direct spre un produs: /#statie-lipit-aer-cald (pentru postări, story-uri, link în bio)
+function focusFromHash() {
+  const slug = decodeURIComponent(location.hash.slice(1));
+  if (!slug || !PRODUCTS.some(p => p.slug === slug)) return;
+  if (cat !== "all") {
+    cat = "all";
+    document.querySelectorAll("#filters button").forEach(x => x.setAttribute("aria-pressed", x.dataset.k === "all"));
+    render();
+  }
+  const el = document.getElementById(slug);
+  if (!el) return;
+  el.classList.add("hl");
+  el.scrollIntoView({ block: "start" });
+}
+
+async function share(btn) {
+  const url = `${location.origin}/#${btn.dataset.slug}`;
+  try {
+    if (navigator.share) return await navigator.share({ title: btn.dataset.t, url });
+    await navigator.clipboard.writeText(url);
+    btn.textContent = "Link copiat";
+  } catch {}
 }
 
 function setCountry(c, how) {
@@ -69,11 +105,18 @@ async function init() {
     render();
   });
 
+  document.getElementById("grid").addEventListener("click", e => {
+    const b = e.target.closest(".share");
+    if (b) share(b);
+  });
+  window.addEventListener("hashchange", focusFromHash);
+
   let saved = null;
   try { saved = localStorage.getItem(KEY); } catch {}
-  if (saved && COUNTRIES[saved]) return setCountry(saved, "alegerea ta anterioară");
+  if (saved && COUNTRIES[saved]) { setCountry(saved, "alegerea ta anterioară"); return focusFromHash(); }
 
   setCountry(fromTimezone(), "după fusul orar");
+  focusFromHash();
   const ip = await fromIp();
   if (ip && ip !== country && !picked) setCountry(ip, "după conexiune");
 }

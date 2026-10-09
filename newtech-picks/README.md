@@ -1,40 +1,45 @@
-# NewTech Picks — site de afiliere
+# NewTech Picks — site de afiliere (Affiliate Market)
 
 Unelte de service și gadgeturi recomandate de NewTech Repair. Fiecare produs arată doar
 magazinele care livrează în țara vizitatorului, iar click-ul trece prin `/go/<produs>`,
-care adaugă ID-ul de afiliat și numără click-ul. Este experimentul #8 din
-„Portofoliu experimente online” (Ghiduri digitale și afiliere).
+care adaugă ID-ul de afiliat. Este experimentul #8 din „Portofoliu experimente online”.
 
-## Cum funcționează
+Costul de funcționare pentru test: **0 lei** (Cloudflare Pages, plan gratuit, permite uz comercial).
+
+## Structura
 
 | Fișier | Rol |
 | --- | --- |
-| `catalog.js` | țări, magazine, produse și regulile de alegere — comun pentru pagină și server |
-| `index.html`, `app.js`, `style.css` | pagina; țara vine din alegerea salvată, apoi fus orar, apoi IP |
-| `api/go.js` | `/go/<produs>?c=RO&s=emag` → link de afiliat + click în Supabase + redirect 302 |
-| `api/geo.js` | țara după IP, din header-ul `x-vercel-ip-country` |
-| `supabase/clicks.sql` | tabelul `clicks` și raportul `clicks_pe_zi` |
+| `public/catalog.js` | țări, magazine, produse și regulile de alegere — comun pentru pagină și server |
+| `public/index.html`, `app.js`, `style.css`, `og.png` | pagina și imaginea de previzualizare pentru rețele |
+| `lib/redirect.js` | alege magazinul și construiește linkul de afiliat |
+| `functions/go/[slug].js` | `/go/<produs>?c=RO&s=emag&src=ig` → redirect 302 spre magazin |
+| `functions/api/geo.js` | țara vizitatorului, dată de Cloudflare |
 
-Regulile de magazin: eMag doar RO/BG/HU, PC Garage doar RO (încărcare și audio), Amazon și
-eBay pe domeniul local (US, GB, DE, FR, IT, ES), AliExpress și Temu peste tot. Magazinul cu
-scorul cel mai mare în țara respectivă e marcat verde.
+## Publicare pe Cloudflare Pages (o singură dată)
 
-## Rulare locală
+1. Cont gratuit pe cloudflare.com → **Workers & Pages → Create → Pages → Connect to Git**.
+2. Alegi repo-ul `mihaimoga03/mihaimoga03` și branch-ul pe care e codul.
+3. Project name: `affiliate-market` · Framework: **None** · Build command: gol ·
+   Build output directory: `public` · Root directory: `newtech-picks`.
+4. **Save and Deploy.** Site-ul apare la `https://affiliate-market.pages.dev`.
 
-```bash
-node dev.js                 # http://localhost:3000
-COUNTRY=DE node dev.js      # simulează un vizitator din Germania
-npm test                    # 12 teste, fără dependențe
-```
+Dacă numele e luat și primești altă adresă, schimbă `og:image` din `public/index.html`.
+Orice push pe branch republică automat site-ul.
 
-## Publicare pe Vercel
+## Linkuri pentru rețelele sociale
 
-1. Proiect nou din repo, cu **Root Directory** = `newtech-picks`. Fără build, fără framework.
-2. Rulezi `supabase/clicks.sql` în Supabase (SQL Editor).
-3. Pui variabilele din `.env.example` în Settings → Environment Variables. Oricare lipsește,
-   linkul acelui magazin merge simplu, fără comision — site-ul funcționează din prima zi.
+| Unde | Link |
+| --- | --- |
+| Bio Instagram | `https://affiliate-market.pages.dev/?src=ig` |
+| TikTok | `…/?src=tiktok` · Facebook `…/?src=fb` |
+| Un produs anume (story, postare) | `…/?src=ig#multimetru-true-rms` |
 
-## Programele de afiliere de deschis
+Butonul „Trimite produsul” de pe fiecare card copiază linkul direct al produsului.
+Sursa ajunge ca sub-ID în rețelele de afiliere care o acceptă (Profitshare/2Performant prin
+`{src}`, eBay prin `customid`), deci vezi în panoul lor ce rețea socială aduce comisioane.
+
+## Programele de afiliere
 
 | Magazin | Program | Variabilă |
 | --- | --- | --- |
@@ -44,15 +49,23 @@ npm test                    # 12 teste, fără dependențe
 | AliExpress | AliExpress Portals | `AFF_TEMPLATE_ALI` |
 | Temu | Temu Affiliate | `AFF_TEMPLATE_TEMU` |
 
-Șabloanele `AFF_TEMPLATE_*` sunt linkul de deep link al rețelei, cu `{url}` în locul adresei
-magazinului (exemplu în `.env.example`).
-
-## Adăugarea unui produs
-
-Un obiect nou în `PRODUCTS` din `catalog.js`: `slug` unic (apare în link), `cat`, titlu,
-de ce îl recomanzi, specificații, termenul de căutare în engleză (`en`) și în română (`ro`).
+Valorile se pun în Cloudflare → proiect → Settings → Variables and Secrets (lista în `.env.example`).
 
 ## Ce măsurăm
 
-Metrica experimentului: click-uri pe zi din `clicks_pe_zi`, apoi comisioane din panourile
-rețelelor. Nu se păstrează IP-ul și nu se pun cookie-uri; boții nu sunt numărați.
+- Click-uri și comisioane: în panourile rețelelor de afiliere, pe sub-ID (sursă).
+- Click-uri în timp real: Cloudflare → proiect → Functions → Real-time logs.
+- Vizite: Cloudflare Web Analytics (gratuit, se activează din proiect).
+
+## Rulare locală și teste
+
+```bash
+node dev.js                 # http://localhost:3000
+COUNTRY=DE node dev.js      # simulează un vizitator din Germania
+npm test                    # 15 teste, fără dependențe
+```
+
+## Adăugarea unui produs
+
+Un obiect nou în `PRODUCTS` din `public/catalog.js`: `slug` unic (apare în link), `cat`,
+titlu, de ce îl recomanzi, specificații, termenul de căutare în engleză (`en`) și română (`ro`).
