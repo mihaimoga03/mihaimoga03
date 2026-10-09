@@ -35,6 +35,11 @@ Orice push pe branch republică automat site-ul.
 | TikTok | `…/?src=tiktok` · Facebook `…/?src=fb` |
 | Un produs anume (story, postare) | `…/?src=ig#multimetru-true-rms` |
 
+Cine deschide linkul din Instagram, Facebook sau TikTok ajunge în browserul aplicației, unde
+nu e logat în eMag sau Amazon. Pagina îi arată un buton „Deschide în Chrome/Safari”, iar pe
+Android ofertele se deschid direct în Chrome (de acolo în aplicația magazinului, dacă o are),
+ca să cumpere din contul lui. Cookie-ul de afiliere se pune în browserul în care cumpără.
+
 Butonul „Trimite produsul” de pe fiecare card copiază linkul direct al produsului.
 Sursa ajunge ca sub-ID în rețelele de afiliere care o acceptă (Profitshare/2Performant prin
 `{src}`, eBay prin `customid`), deci vezi în panoul lor ce rețea socială aduce comisioane.

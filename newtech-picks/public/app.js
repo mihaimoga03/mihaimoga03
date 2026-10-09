@@ -14,6 +14,31 @@ const SRC = (() => {
   return s;
 })();
 
+// Browserul din Instagram/Facebook/TikTok nu știe de contul clientului din eMag sau Amazon,
+// așa că îl scoatem în browserul telefonului (sau în aplicația magazinului), unde e deja logat.
+const UA = navigator.userAgent || "";
+const IN_APP = /Instagram|FBAN|FBAV|FB_IAB|TikTok|musical_ly|BytedanceWebview|Snapchat|Pinterest/i.test(UA);
+const ANDROID = /Android/i.test(UA);
+const IOS = /iPhone|iPad|iPod/i.test(UA);
+const APP_NAME = /Instagram/i.test(UA) ? "Instagram" : /TikTok|musical_ly|Bytedance/i.test(UA) ? "TikTok" : "Facebook";
+
+// Pe Android, intent:// deschide adresa în Chrome; Chrome trimite apoi spre aplicația magazinului dacă e instalată.
+const external = href => {
+  const u = new URL(href, location.href);
+  return ANDROID
+    ? `intent://${u.host}${u.pathname}${u.search}${u.hash}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(u.href)};end`
+    : IOS ? `x-safari-${u.href}` : u.href;
+};
+
+function inAppBanner() {
+  if (!IN_APP || !(ANDROID || IOS)) return;
+  const el = document.getElementById("inapp");
+  el.hidden = false;
+  el.innerHTML = `<b>Ești în browserul din ${APP_NAME}.</b> Aici nu ești logat în contul tău de eMag sau Amazon.
+    <a class="btn" href="${esc(external(location.href))}">Deschide în ${ANDROID ? "Chrome" : "Safari"}</a>
+    <span class="hint">Dacă nu merge: apasă ⋯ sus în dreapta → „Deschide în browser”.</span>`;
+}
+
 const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
 
 function fromTimezone() {
@@ -37,11 +62,15 @@ function render() {
   if (!list.length) { grid.innerHTML = '<p class="empty">Nu sunt produse în această categorie.</p>'; return; }
   grid.innerHTML = list.map(p => {
     const o = offersFor(p, country);
-    const rows = o.length ? o.map((x, i) => `
-      <a class="offer${i === 0 && x.score > 0 ? " best" : ""}" href="/go/${p.slug}?c=${country}&s=${x.s.id}${SRC ? `&src=${SRC}` : ""}" target="_blank" rel="sponsored noopener">
+    const rows = o.length ? o.map((x, i) => {
+      const go = `/go/${p.slug}?c=${country}&s=${x.s.id}${SRC ? `&src=${SRC}` : ""}`;
+      const href = IN_APP && ANDROID ? external(go) : go;
+      return `
+      <a class="offer${i === 0 && x.score > 0 ? " best" : ""}" href="${esc(href)}" target="_blank" rel="sponsored noopener">
         <span><span class="s">${esc(x.s.name)}</span><br><span class="m">${esc(x.s.net)}</span></span>
         <span class="go">Vezi oferta →</span>
-      </a>`).join("") : '<span class="none">Niciun magazin nu livrează aici.</span>';
+      </a>`;
+    }).join("") : '<span class="none">Niciun magazin nu livrează aici.</span>';
     return `<article class="card" id="${p.slug}">
       <span class="cat">${esc(CATS[p.cat])}</span>
       <h2>${esc(p.t)}</h2>
@@ -87,6 +116,7 @@ function setCountry(c, how) {
 }
 
 async function init() {
+  inAppBanner();
   const sel = document.getElementById("country");
   sel.innerHTML = Object.entries(COUNTRIES).map(([c, v]) => `<option value="${c}">${esc(v.n)}</option>`).join("");
   sel.addEventListener("change", () => {
