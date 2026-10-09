@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NewTech Picks — unelte și gadgeturi recomandate de un tehnician</title>
+<meta name="description" content="Unelte de service și gadgeturi testate pe banc la NewTech Repair Iași. Vezi doar magazinele care livrează în țara ta.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%23d98a1c%22/%3E%3Ctext x=%2216%22 y=%2222%22 font-size=%2216%22 text-anchor=%22middle%22 font-family=%22sans-serif%22 font-weight=%22700%22 fill=%22%23fff%22%3EP%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>NewTech <span>Picks</span></h1>
+      <span class="tag">recomandat de un tehnician · Iași</span>
+    </div>
+    <p class="lede">Unelte de service și gadgeturi testate pe banc. Fiecare produs îți arată doar magazinele care livrează în țara ta.</p>
+    <div class="bar">
+      <label for="country">Țara de livrare</label>
+      <select id="country"></select>
+      <div class="detect" id="detect"></div>
+    </div>
+    <div class="filters" id="filters" role="group" aria-label="Categorii"></div>
+  </header>
+
+  <main class="grid" id="grid" aria-live="polite"></main>
+
+  <section class="how">
+    <h3>Cum alegem magazinul</h3>
+    <ol>
+      <li>Țara îți este detectată după conexiune; o poți schimba oricând din listă.</li>
+      <li>Un magazin apare doar dacă livrează în țara aleasă: eMag în România, Bulgaria și Ungaria, Amazon pe domeniul local, AliExpress și Temu peste tot.</li>
+      <li>Oferta marcată verde e magazinul pe care îl recomandăm pentru țara ta.</li>
+    </ol>
+  </section>
+
+  <footer>
+    Unele linkuri sunt de afiliere. Dacă cumperi prin ele, primim un comision, fără cost suplimentar pentru tine.
+    Nu folosim cookie-uri și nu păstrăm adresa IP; numărăm doar click-urile pe produs, magazin și țară.
+    · <a href="https://newtech-repair.ro">NewTech Repair</a>
+  </footer>
+</div>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

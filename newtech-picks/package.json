@@ -1,0 +1,12 @@
+{
+  "name": "newtech-picks",
+  "private": true,
+  "type": "module",
+  "description": "Site de recomandări cu linkuri de afiliere, magazinul ales după țara vizitatorului",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
